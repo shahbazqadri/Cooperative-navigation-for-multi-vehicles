@@ -1,5 +1,6 @@
 import numpy as np
 from Kinematics import Kinematics
+from decimal import Decimal as D
 class Vehicle(object):
     wp_idx = 0
 
@@ -33,8 +34,8 @@ class Vehicle(object):
         self.meas = np.empty((2,1))
         self.meas_history = np.empty((2,1))
 
-        # range measurements param
-        self.measRange_history = []
+        # # range measurements param
+        # self.measRange_history = np.empty(())
 
         # navigation param
         self.target_point = np.array([[3000],[3000]])
@@ -54,15 +55,15 @@ class Vehicle(object):
     def update_state(self, time):
         # update_state: compute the new vehicle state
         self.update_measurements(time)
-        self.update_controller(time)
-        self.update_kinematics(time)
+        self.update_controller()
+        self.update_kinematics()
 
         self.last_states = self.states
         self.states = self.next_states
         self.states_history = np.hstack((self.states_history, self.states))
 
 
-    def update_kinematics(self, time):
+    def update_kinematics(self):
         # compute kinematics
         K = Kinematics()
         states = self.states
@@ -72,43 +73,48 @@ class Vehicle(object):
 
     def update_measurements(self, time):
         # updata sensor measurements: update the odom measurements
-        odom_period = 1/self.f_odom
-        if time%odom_period == 0:
+        odom_period = 1./self.f_odom
+        if D(str(time) )% D(str(odom_period ))== 0.:
+            # print(time)
+            self.count += 1
             meas_encoder = np.array([[self.v + self.std_v*np.random.randn()],[self.omega + self.std_omega*np.random.randn()]])
             self.meas    = meas_encoder
             self.meas_history= np.hstack((self.meas_history,meas_encoder))
 
 
-    def update_controller(self, time):
+    def update_controller(self):
         if self.use_estimation == True:
-            vehicle_pos = self.states_est[:2,:]
-            vehicle_theta = self.states_est[2:,:]
+            self.vehicle_pos = self.states_est[:2,:]
+            self.vehicle_theta = self.states_est[2:,:]
         else:
-            vehicle_pos = self.states[:2,:]
-            vehicle_theta = self.states[2:,:]
+            self.vehicle_pos = self.states[:2,:]
+            self.vehicle_theta = self.states[2:,:]
 
         v = self.v
-        rel_pos = self.target_point - vehicle_pos
-        vehicle_vel = np.vstack((v*np.cos(vehicle_theta),v*np.sin(vehicle_theta)))
-        vec_cos = np.dot(rel_pos[:,0], vehicle_vel[:,0])/(np.linalg.norm(rel_pos)*np.linalg.norm(vehicle_vel))
-        if vec_cos < -1:
-            vec_cos = -1
-        elif vec_cos > 1:
-            vec_cos = 1
+        rel_pos = self.target_point - self.vehicle_pos
+        vehicle_vel = np.vstack((v*np.cos(self.vehicle_theta),v*np.sin(self.vehicle_theta)))
+        self.vec_cos = np.dot(rel_pos[:,0], vehicle_vel[:,0])/(np.linalg.norm(rel_pos)*np.linalg.norm(vehicle_vel))
+        if self.vec_cos < -1:
+            self.vec_cos = -1
+        elif self.vec_cos > 1:
+            self.vec_cos = 1
 
-        beta = np.arccos(vec_cos)
-        cross_product = np.cross(np.vstack((vehicle_vel, 0.))[:,0], np.vstack((rel_pos, 0.))[:,0])
-        if cross_product[2] < 0:
+        beta = np.arccos(self.vec_cos)
+        self.cross_product = np.cross(np.vstack((vehicle_vel, 0.))[:,0], np.vstack((rel_pos, 0.))[:,0])
+        if self.cross_product[2] < 0:
             beta = -beta
 
         K = 1/self.Delta_t
         omega_max = np.deg2rad(5);
         if np.abs(K*beta) <= omega_max:
             self.omega = K*beta
+            self.omega_inlimit = True
         elif K*beta < -omega_max:
             self.omega = -omega_max
+            self.omega_inlimit = False
         elif K*beta > omega_max:
             self.omega = omega_max
+            self.omega_inlimit = False
 
         self.ctrl_cmd = np.array([[self.omega],[self.v]])
         self.ctrl_cmd_history = np.hstack((self.ctrl_cmd_history, self.ctrl_cmd))

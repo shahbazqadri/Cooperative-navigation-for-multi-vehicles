@@ -1,8 +1,16 @@
+import decimal
+
 import numpy as np
 from Swarm import Swarm
+import gtsam
+from typing import Optional, List
+from functools import partial
 
-Delta_t = 0.01
-t       = np.arange(0,100.01,Delta_t)
+Delta_t = 0.1
+# finding the number of decimal places of Delta_t
+precision = abs(decimal.Decimal(str(Delta_t)).as_tuple().exponent)
+t       = np.arange(0,10,Delta_t)
+t = np.round(t, precision) # to round off python floating point precision errors
 v       = 30 #m/s
 std_omega = np.deg2rad(0.57) #rad/s
 std_v     = 0.01 #m/s
@@ -30,7 +38,8 @@ for tt in t:
     # update vehicle states and plot
     swarm.update_state(tt)
     swarm.update_measRange()
-
+for j in range(nb_agents):
+    print(swarm.vehicles[j].count)
 swarm.get_swarm_states_history()
-swarm.plot_swarm_traj()
-swarm.plot_swarm_heading()
+# swarm.plot_swarm_traj()
+# swarm.plot_swarm_heading()

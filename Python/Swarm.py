@@ -54,6 +54,8 @@ class Swarm():
     def update_adjacency(self, adjacency):
         for i in range(self.nb_agents):
             self.vehicles[i].adjacency = adjacency
+            self.vehicles[i].measRange_history = np.empty((self.nb_agents,1))
+            self.vehicles[i].count = 0
 
     def update_measRange(self):
         #update sensor measurements
@@ -66,14 +68,14 @@ class Swarm():
                     neighbor_pos = self.vehicles[jj].states[:2,:]
                     meas_range  =  np.linalg.norm(vehicle_pos - neighbor_pos) + self.vehicles[j].std_range*np.random.randn()
 
-                    if measRange_matrix[j, jj] == 0 and measRange_matrix[jj,j] == 0:
-                        measRange_matrix[j,jj] = meas_range
+                    # if measRange_matrix[j, jj] == 0 and measRange_matrix[jj,j] == 0:
+                    measRange_matrix[j,jj] = meas_range
 
         for j in range(self.nb_agents):
-            self.vehicles[j].measRange_history = np.hstack((self.vehicles[j].measRange_history, measRange_matrix[j,:].transpose()))
+            self.vehicles[j].measRange_history = np.hstack((self.vehicles[j].measRange_history, measRange_matrix[j:j+1,:].transpose()))
 
 
-    def  get_swarm_states_history(self):
+    def  get_swarm_states_history_(self):
         self.get_swarm_states_history = []
         for i in range(self.nb_agents):
             self.get_swarm_states_history.append(self.vehicles[i].states_history)
