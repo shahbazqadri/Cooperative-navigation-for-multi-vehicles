@@ -14,10 +14,10 @@ agent = Agent()
 unicycle = agent.unicycle
 nx = 3
 nu = 2
-Delta_t   = 0.1
+Delta_t   = 0.01
 # finding the number of decimal places of Delta_t
 precision = abs(D(str(Delta_t)).as_tuple().exponent)
-t         = np.arange(0,40,Delta_t)
+t         = np.arange(0,35,Delta_t)
 t = np.round(t, precision) # to round off python floating point precision errors
 vel         = 30 #m/s
 omega_max = 5 #degrees/s
@@ -25,14 +25,14 @@ std_omega = np.deg2rad(0.57) #degrees/s
 std_v     = 0.01 #m/s
 std_range = 0.01 #m
 f_range   = 10 #Hz
-f_odom    = 10 #Hz
+f_odom    = 100 #Hz
 f_waypt  = 1
 
 nb_agents =4
 adjacency = np.ones((nb_agents, nb_agents)) - np.eye(nb_agents)
 # Set initial and end position
 pos0 = np.array([[0.,10.,10.,0.],[0.,0.,10.,10.]])
-posf = np.array([[30, 40, 40, 30],[30, 30, 40, 40]])
+posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
 print('Done.')
 swarm =  Swarm()
 swarm.update_adjacency(adjacency)
@@ -67,8 +67,8 @@ S0 = 1e-4*np.eye(nx*nb_agents)
 # S0[2,2] = 1.
 # S0[5,5] = 1.
 prior_noise = gtsam.noiseModel.Gaussian.Covariance(S0)#gtsam.noiseModel.Constrained.All(nx*nb_agents)#
-dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1))#gtsam.noiseModel.Gaussian.Covariance(S0)#
-range_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_range**2]*nb_agents))
+dynamics_noise = gtsam.noiseModel.Constrained.All(nx*nb_agents)#gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1))#gtsam.noiseModel.Gaussian.Covariance(S0)#
+# range_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_range**2]*nb_agents))
 q_noise = gtsam.noiseModel.Gaussian.Information(np.diag([1]*(nx*nb_agents)))
 qT_noise = gtsam.noiseModel.Gaussian.Information(np.diag([1]*(nx*nb_agents)))
 odom_noise     = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_v**2, std_omega**2]*nb_agents))
@@ -103,41 +103,38 @@ def error_dyn( measurements, this: gtsam.CustomFactor,
     # print(X_)
     return error
 
-def error_range(measurement, this: gtsam.CustomFactor,
+def error_range(ego_idx, neighbor_idx_set, measurement, this: gtsam.CustomFactor,
               values: gtsam.Values,
               jacobians: Optional[List[np.ndarray]]):
     key1 = this.keys()[0]
 
     X_ = values.atVector(key1)
-    range_ = np.zeros((nb_agents,1))
-    diff_j = np.zeros((nx,1))
-
-    for j in range(nb_agents):
+    n = measurement.shape[0]
+    vehicle_pos = X_[ego_idx * nx:((ego_idx + 1) * nx )- 1].reshape(2, 1)
+    for j in range(n):
         jac = np.zeros((1, nx * nb_agents))
-        vehicle_pos = X_[j*nx:(j+1)*nx-1].reshape(2, 1)
-        for jj in range(nb_agents):
-            if adjacency[j,jj] == 1:
-                neighbor_pos = X_[jj*nx:(jj+1)*nx-1].reshape(2, 1)
-                range_[j,:] += np.linalg.norm(vehicle_pos - neighbor_pos)
-                jac[:,j*nx:(j+1)*nx-1] += (neighbor_pos - vehicle_pos).transpose()
-                jac[:,jj*nx:(jj+1)*nx-1] = (-neighbor_pos + vehicle_pos).transpose()
+        neighbor_idx = neighbor_idx_set[j]
+        neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(2, 1)
+        range_ = np.linalg.norm(vehicle_pos - neighbor_pos)
+        jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = (neighbor_pos - vehicle_pos).transpose()
+        jac[:,neighbor_idx*nx:((neighbor_idx+1)*nx)-1] = (-neighbor_pos + vehicle_pos).transpose()
 
         if jacobians is not None:
 
             if j == 0:
-                if range_[j, 0] != 0:
-                    jacobians[0] = (1. / range_[j,0]) * jac
+                if range_ != 0:
+                    jacobians[0] = (1. / range_) * jac
                 else:
                     jacobians[0] = np.zeros((1, nx * nb_agents))
             else:
-                if range_[j, 0] != 0:
-                    jacobians[0] = np.vstack((jacobians[0],(1. / range_[j,0]) * jac))
+                if range_!= 0:
+                    jacobians[0] = np.vstack((jacobians[0],(1. / range_) * jac))
                 else:
                     jacobians[0] = np.vstack((jacobians[0], np.zeros((1, nx * nb_agents))))
 
 
 
-    error = ( range_ - measurement).reshape(nb_agents,)
+    error = (range_ - measurement.reshape(n,1)).reshape(n,)
     return error
 
 def error_odom( measurements, this: gtsam.CustomFactor,
@@ -189,7 +186,7 @@ for j in range(nb_agents):
     Xf[:, j:j + 1] = np.vstack((posf[:, j:j + 1], np.array([[0.]])))
 
 Xf = Xf.T.flatten().reshape(nx * nb_agents, 1)
-
+X_val = X0
 idx = 0
 for k in range(len(t)):
     print('time = {}'.format(t[k]))
@@ -209,17 +206,25 @@ for k in range(len(t)):
         if D(str(t[k]) )% D(str(range_period))== 0.:
             range_meas = np.zeros((nb_agents, 1))
             for j in range(nb_agents):
-                for jj in range(nb_agents):
-                    if adjacency[j, jj] == 1:
-                        range_meas[j, :] += swarm.vehicles[j].measRange_history[jj, k]
-            gfrange = gtsam.CustomFactor(range_noise, [X[k]], partial(error_range, range_meas))  # np.array([X[k]])
-            graph.add(gfrange)
+                idx_set = np.nonzero(adjacency[j, :])[0]
+                range_meas = swarm.vehicles[j].measRange_history[idx_set, k]
+                range_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_range ** 2] * len(idx_set)))
+                gfrange = gtsam.CustomFactor(range_noise, [X[k]],
+                                             partial(error_range, j, idx_set, range_meas))  # np.array([X[k]])
+                graph.add(gfrange)
+            #     for jj in range(nb_agents):
+            #         if adjacency[j, jj] == 1:
+            #             range_meas[j, :] += swarm.vehicles[j].measRange_history[jj, k]
+            # gfrange = gtsam.CustomFactor(range_noise, [X[k]], partial(error_range, range_meas))  # np.array([X[k]])
+            # graph.add(gfrange)
 
-
-
+        for j in range(nb_agents):
+            X_val[j * nx:(j + 1) * nx, :] = unicycle.discrete_step(X_val[j * nx:(j + 1) * nx, :],
+                                                                   meas_history[j * nu:(j + 1) * nu, k:k + 1].reshape(
+                                                                       nu, 1), Delta_t)
 
         # graph.add(gtsam.PriorFactorVector(X[k], Xf, prior_noise))
-        v.insert(X[k], np.full((nx * nb_agents, 1), 0))
+        v.insert(X[k], X_val)#np.full((nx * nb_agents, 1), 0))
         # if k < len(t) - 1:
         #     e = - v.atVector(X[k]) + Xf.transpose()
         #     graph.add(gtsam.PriorFactorVector(X[k], np.array(e).transpose(), q_noise))
@@ -230,10 +235,10 @@ for k in range(len(t)):
 print(graph)
 print('Done.')
 print('Performing factor graph optimization........')
-params = gtsam.GaussNewtonParams()
-optimizer = gtsam.GaussNewtonOptimizer(graph, v, params)
-# params = gtsam.LevenbergMarquardtParams()
-# optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)
+# params = gtsam.GaussNewtonParams()
+# optimizer = gtsam.GaussNewtonOptimizer(graph, v, params)
+params = gtsam.LevenbergMarquardtParams()
+optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)
 result = optimizer.optimize()
 # print(result)
 print('Done.')
@@ -243,10 +248,8 @@ for j in range(nb_agents):
     x_sol = np.zeros((len(t), nx))
     for k in range(len(t)):
         x_sol[k, :] = result.atVector(X[k])[j*nx:(j+1)*nx]
-        # print('result=', result.atVector(X[k]))
-        # print('sol=', x_sol)
-    np.savetxt('x'+str(j)+'.csv', x_sol, delimiter= ',')
-    # np.savetxt('x'+str(j)+'_true.csv', get_swarm_states_history[j], delimiter= ',')
+
+    np.savetxt('x'+str(j)+'.csv', x_sol, delimiter=',')
     x_res.append(x_sol)
 
 print('Done')
@@ -258,7 +261,7 @@ for j in range(nb_agents):
     states = x_res[j].transpose()
     states_ = swarm.get_swarm_states_history[j]
     time = t
-    plt.plot(states[0, :], states[1, :], label='estmated Vehicle ' + str(j))
+    plt.plot(states[0, :], states[1, :], label='estimated Vehicle ' + str(j))
     plt.plot(states_[0, 1:], states_[1, 1:], label='true Vehicle ' + str(j))
     # plt.quiver(states[0, :], states[1, :], np.cos(states[2, :]), np.sin(states[2, :]), scale=20)
     plt.legend()
@@ -266,18 +269,18 @@ for j in range(nb_agents):
     plt.xlabel('x (m)')
     plt.ylabel('y (m)')
     plt.show()
-# for j in range(nb_agents):
-#     states = x_res[j].transpose()
-#     # states_ = get_swarm_states_history[j]
-#     time = t
-#     legends = ['x', 'y', '$\\theta$']
-#     for l in range(3):
-#         plt.plot(states[l, :], label='estimated ' + legends[l])
-#         # plt.plot(states_[l, 1:], label='true ' +legends[l])
-#
-#         # plt.quiver(states[0, :], states[1, :], np.cos(states[2, :]), np.sin(states[2, :]), scale=20)
-#         plt.legend()
-#         plt.title(legends[l] + ' trajectories - Vehicle' + str(j) )
-#         plt.xlabel('timesteps')
-#         plt.ylabel(legends[l])
-#         plt.show()
+
+time = t
+legends = ['x', 'y', '$\\theta$']
+for l in range(3):
+    for j in range(nb_agents):
+        states = x_res[j].transpose()
+        states_ = get_swarm_states_history[j]
+        plt.plot(states[l, :] - states_[l, 1:], label='Vehicle '+str(j))
+
+    # plt.quiver(states[0, :], states[1, :], np.cos(states[2, :]), np.sin(states[2, :]), scale=20)
+    plt.legend()
+    plt.title(legends[l]+'-error trajectories' )
+    plt.xlabel('timesteps')
+    plt.ylabel(legends[l])
+    plt.show()
