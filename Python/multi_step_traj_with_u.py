@@ -151,14 +151,16 @@ def error_range(ego_idx, neighbor_idx_set, measurement, this: gtsam.CustomFactor
 
     X_ = values.atVector(key1)
     n = measurement.shape[0]
+    range_est = np.zeros((n,1))
     vehicle_pos = X_[ego_idx * nx:((ego_idx + 1) * nx )- 1].reshape(2, 1)
     for j in range(n):
         jac = np.zeros((1, nx * nb_agents))
         neighbor_idx = neighbor_idx_set[j]
         neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(2, 1)
         range_ = np.linalg.norm(vehicle_pos - neighbor_pos)
-        jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = (neighbor_pos - vehicle_pos).transpose()
-        jac[:,neighbor_idx*nx:((neighbor_idx+1)*nx)-1] = (-neighbor_pos + vehicle_pos).transpose()
+        range_est[j,:] = range_
+        jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = -(neighbor_pos - vehicle_pos).transpose()
+        jac[:,neighbor_idx*nx:((neighbor_idx+1)*nx)-1] = -(-neighbor_pos + vehicle_pos).transpose()
 
         if jacobians is not None:
 
@@ -175,7 +177,7 @@ def error_range(ego_idx, neighbor_idx_set, measurement, this: gtsam.CustomFactor
 
 
 
-    error = (range_ - measurement.reshape(n,1)).reshape(n,)
+    error = (range_est - measurement.reshape(n,1)).reshape(n,)
     return error
 def error_odom(measurement, this: gtsam.CustomFactor,
               values: gtsam.Values,
@@ -291,7 +293,7 @@ print('Initializing agents.........')
 nb_agents = 4
 Delta_t = 0.01
 T = 100
-num_sub_traj = 1
+num_sub_traj = 10
 nx = 3
 nu = 2
 agent = Agent()

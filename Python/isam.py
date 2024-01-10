@@ -15,10 +15,12 @@ unicycle = agent.unicycle
 nx = 3
 nu = 2
 Delta_t   = 0.01
+T = 50 #s
 # finding the number of decimal places of Delta_t
 precision = abs(D(str(Delta_t)).as_tuple().exponent)
-t         = np.arange(0,100,Delta_t)
+t         = np.arange(0,T,Delta_t)
 t = np.round(t, precision) # to round off python floating point precision errors
+tinc = 0.5 #sec
 vel         = 30 #m/s
 omega_max = 5 #degrees/s
 std_omega = np.deg2rad(0.57) #degrees/s
@@ -118,8 +120,8 @@ def error_range(ego_idx, neighbor_idx_set, measurement, this: gtsam.CustomFactor
         neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(2, 1)
         range_ = np.linalg.norm(vehicle_pos - neighbor_pos)
         range_est[j,:] = range_
-        jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = (neighbor_pos - vehicle_pos).transpose()
-        jac[:,neighbor_idx*nx:((neighbor_idx+1)*nx)-1] = (-neighbor_pos + vehicle_pos).transpose()
+        jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = -(neighbor_pos - vehicle_pos).transpose()
+        jac[:,neighbor_idx*nx:((neighbor_idx+1)*nx)-1] = -(-neighbor_pos + vehicle_pos).transpose()
 
         if jacobians is not None:
 
@@ -221,23 +223,23 @@ for k in range(0, len(t)):
     #     # idx += 1
     #     graph.add(gfodom)
     # if k > 0:
-    # range_period = 1./f_range
-    # if D(str(t[k])) % D(str(range_period)) == 0.:
-    #     range_meas = np.zeros((nb_agents, 1))
-    #     for j in range(nb_agents):
-    #         idx_set = np.nonzero(adjacency[j, :])[0]
-    #         range_meas = swarm.vehicles[j].measRange_history[idx_set, k]
-    #         range_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_range ** 2] * len(idx_set)))
-    #         gfrange = gtsam.CustomFactor(range_noise, [X[k]],
-    #                                      partial(error_range, j, idx_set, range_meas))  # np.array([X[k]])
-    #         graph.add(gfrange)
+    range_period = 1./f_range
+    if D(str(t[k])) % D(str(range_period)) == 0.:
+        range_meas = np.zeros((nb_agents, 1))
+        for j in range(nb_agents):
+            idx_set = np.nonzero(adjacency[j, :])[0]
+            range_meas = swarm.vehicles[j].measRange_history[idx_set, k]
+            range_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_range ** 2] * len(idx_set)))
+            gfrange = gtsam.CustomFactor(range_noise, [X[k]],
+                                         partial(error_range, j, idx_set, range_meas))  # np.array([X[k]])
+            graph.add(gfrange)
             #     for jj in range(nb_agents):
             #         if adjacency[j, jj] == 1:
             #             range_meas[j, :] += swarm.vehicles[j].measRange_history[jj, k]
             # gfrange = gtsam.CustomFactor(range_noise, [X[k]], partial(error_range, range_meas))  # np.array([X[k]])
             # graph.add(gfrange)
 
-    if k > 50 and count > 50:
+    if k > (tinc/Delta_t)-1 and count > (tinc/Delta_t)-1:
         if not initialized:
             params = gtsam.LevenbergMarquardtParams()
             optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)

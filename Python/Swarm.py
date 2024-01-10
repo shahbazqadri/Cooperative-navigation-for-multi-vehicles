@@ -31,6 +31,14 @@ class Swarm():
         for i in range(self.nb_agents):
             self.vehicles[i].set_endPos(pos[:,i:i+1])
 
+    def set_swarm_initPose(self, pose):
+        for i in range(self.nb_agents):
+            self.vehicles[i].set_initPose(pose[:,i:i+1])
+
+    def set_swarm_endpose(self, pose):
+        for i in range(self.nb_agents):
+            self.vehicles[i].set_endPose(pose[:,i:i+1])
+
     def set_swarm_waypoints(self, waypoints):
         for i in range(self.nb_agents):
             self.vehicles[i].waypoints = waypoints[i]

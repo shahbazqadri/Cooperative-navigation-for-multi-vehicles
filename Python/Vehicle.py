@@ -52,6 +52,14 @@ class Vehicle(object):
         # set end position
         self.target_point = endPos
 
+    def set_initPose(self, initPose):
+        # set initial position
+        self.states = initPose
+
+    def set_endPose(self, endPose):
+        # set end position
+        self.target_point = endPose[:2,:]
+
     def update_state(self, time):
         # update_state: compute the new vehicle state
         self.update_measurements(time)

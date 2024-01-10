@@ -67,11 +67,11 @@ S0 = 1e-4*np.eye(nx*nb_agents)
 # S0[2,2] = 1.
 # S0[5,5] = 1.
 prior_noise = gtsam.noiseModel.Gaussian.Covariance(S0)#gtsam.noiseModel.Constrained.All(nx*nb_agents)#
-dynamics_noise = gtsam.noiseModel.Constrained.All(nx*nb_agents)#gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1))#gtsam.noiseModel.Gaussian.Covariance(S0)#
+dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1))#gtsam.noiseModel.Gaussian.Covariance(S0)#
 # range_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_range**2]*nb_agents))
 q_noise = gtsam.noiseModel.Gaussian.Information(np.diag([1]*(nx*nb_agents)))
 qT_noise = gtsam.noiseModel.Gaussian.Information(np.diag([1]*(nx*nb_agents)))
-odom_noise     = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_v**2, std_omega**2]*nb_agents))
+# odom_noise     = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_v**2, std_omega**2]*nb_agents))
 
 # Create an empty Gaussian factor graph
 graph = gtsam.NonlinearFactorGraph()
@@ -83,9 +83,9 @@ def error_dyn( measurements, this: gtsam.CustomFactor,
 
     X_, Xp1 = values.atVector(key1), values.atVector(key2)
     x = np.zeros((nx*nb_agents,1))
-    u = np.zeros((nu*nb_agents,1))
+    u = measurements.reshape(nu*nb_agents,1)
     for j in range(nb_agents):
-        u[j*nu:(j+1)*nu,:], _ = unicycle.update_controller(X_[j*nx:(j+1)*nx].reshape(nx,1), posf[:, j:j + 1], vel, omega_max, Delta_t)
+        # u[j*nu:(j+1)*nu,:], _ = unicycle.update_controller(X_[j*nx:(j+1)*nx].reshape(nx,1), posf[:, j:j + 1], vel, omega_max, Delta_t)
         x[j*nx:(j+1)*nx, :] = unicycle.discrete_step(X_[j*nx:(j+1)*nx].reshape(nx,1), u[j*nu:(j+1)*nu,:], Delta_t)
 
 
@@ -110,14 +110,16 @@ def error_range(ego_idx, neighbor_idx_set, measurement, this: gtsam.CustomFactor
 
     X_ = values.atVector(key1)
     n = measurement.shape[0]
+    range_est = np.zeros((n,1))
     vehicle_pos = X_[ego_idx * nx:((ego_idx + 1) * nx )- 1].reshape(2, 1)
     for j in range(n):
         jac = np.zeros((1, nx * nb_agents))
         neighbor_idx = neighbor_idx_set[j]
         neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(2, 1)
         range_ = np.linalg.norm(vehicle_pos - neighbor_pos)
-        jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = (neighbor_pos - vehicle_pos).transpose()
-        jac[:,neighbor_idx*nx:((neighbor_idx+1)*nx)-1] = (-neighbor_pos + vehicle_pos).transpose()
+        range_est[j,:] = range_
+        jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = -(neighbor_pos - vehicle_pos).transpose()
+        jac[:,neighbor_idx*nx:((neighbor_idx+1)*nx)-1] = -(-neighbor_pos + vehicle_pos).transpose()
 
         if jacobians is not None:
 
@@ -134,7 +136,7 @@ def error_range(ego_idx, neighbor_idx_set, measurement, this: gtsam.CustomFactor
 
 
 
-    error = (range_ - measurement.reshape(n,1)).reshape(n,)
+    error = (range_est - measurement.reshape(n,1)).reshape(n,)
     return error
 
 def error_odom( measurements, this: gtsam.CustomFactor,
@@ -189,18 +191,21 @@ Xf = Xf.T.flatten().reshape(nx * nb_agents, 1)
 X_val = X0
 idx = 0
 for k in range(len(t)):
-    print('time = {}'.format(t[k]))
+    # print('time = {}'.format(t[k]))
     if k < len(t) - 1:
-        gf = gtsam.CustomFactor(dynamics_noise, [X[k], X[(k + 1)]],
-                                partial(error_dyn, np.array([X[k], X[(k + 1)]])))
-        graph.add(gf)
-    odom_period = 1. / f_odom
-    if D(str(t[k])) % D(str(odom_period)) == 0.:
-        # idx = D(str(t[k])) // D(str(odom_period))
-        gfodom = gtsam.CustomFactor(odom_noise, [X[k]],
-                                    partial(error_odom, meas_history[:,idx]))
-        idx += 1
-        graph.add(gfodom)
+        odom_period = 1. / f_odom
+        if D(str(t[k])) % D(str(odom_period)) == 0.:
+            idx = D(str(t[k])) // D(str(odom_period))
+            gf = gtsam.CustomFactor(dynamics_noise, [X[k], X[(k + 1)]],
+                                    partial(error_dyn, meas_history[:,int(idx)]))
+            graph.add(gf)
+    # odom_period = 1. / f_odom
+    # if D(str(t[k])) % D(str(odom_period)) == 0.:
+        # # idx = D(str(t[k])) // D(str(odom_period))
+        # gfodom = gtsam.CustomFactor(odom_noise, [X[k]],
+        #                             partial(error_odom, meas_history[:,idx]))
+        # idx += 1
+        # graph.add(gfodom)
     if k > 0:
         range_period = 1./f_range
         if D(str(t[k]) )% D(str(range_period))== 0.:
