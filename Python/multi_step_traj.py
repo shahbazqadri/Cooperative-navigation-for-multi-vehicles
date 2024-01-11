@@ -259,7 +259,7 @@ print('Initializing agents.........')
 
 
 # def main(nb_agents, Delta_t, T, num_sub_traj, nx, nu):
-nb_agents = 4
+nb_agents = 5
 Delta_t = 0.01
 T = 100
 num_sub_traj = 200
@@ -275,11 +275,14 @@ std_range = 0.01 #m
 f_range   = 10 #Hz
 f_odom    = 100 #Hz
 f_waypt  = 1
-adjacency = np.ones((nb_agents, nb_agents)) - np.eye(nb_agents)
+adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#np.ones((nb_agents, nb_agents)) - np.eye(nb_agents)
 # Set initial and end position
-pose0 = np.array([[0., 10., 10., 0.],[0., 0., 10., 10.],[0., 0., 0., 0.]])
-pose_est0 = np.array([[0., 10., 10., 0.],[0., 0., 10., 10.],[0., 0., 0., 0.]])
-posef = np.array([[30., 40., 40., 30.],[30., 30., 40., 40],[0., 0., 0., 0.]])
+# pose0 = np.array([[0., 10., 10., 0.],[0., 0., 10., 10.],[0., 0., 0., 0.]])
+# pose_est0 = np.array([[0., 10., 10., 0.],[0., 0., 10., 10.],[0., 0., 0., 0.]])
+# posef = np.array([[30., 40., 40., 30.],[30., 30., 40., 40],[0., 0., 0., 0.]])
+pose0 = np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.],[0., 0., 0., 0.,0.]])
+pose_est0 = np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.],[0., 0., 0., 0.,0.]])
+posef = np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.],[0., 0., 0., 0.,0.]])
 print('Done.')
 S0 = 1e-4*np.eye(nx*nb_agents)
 prior_noise    = gtsam.noiseModel.Gaussian.Covariance(S0)

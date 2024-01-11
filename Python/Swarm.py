@@ -86,6 +86,7 @@ class Swarm():
     def  get_swarm_states_history_(self):
         self.get_swarm_states_history = []
         for i in range(self.nb_agents):
+            self.vehicles[i].states_history = np.delete(self.vehicles[i].states_history, 0, 1)
             self.get_swarm_states_history.append(self.vehicles[i].states_history)
 
 
@@ -94,7 +95,7 @@ class Swarm():
             states = self.get_swarm_states_history[i]
             time = self.vehicles[i].sim_t
             plt.plot(states[0,:], states[1,:], label= 'Vehicle '+str(i))
-            plt.quiver(states[0,:], states[1,:], np.cos(states[2,:]), np.sin(states[2,:]), scale= 20)
+            # plt.quiver(states[0,:], states[1,:], np.cos(states[2,:]), np.sin(states[2,:]), scale= 20)
         plt.legend()
         plt.title('Vehicle trajectories')
         plt.xlabel('x (m)')

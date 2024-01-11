@@ -294,7 +294,7 @@ for j in range(nb_agents):
     states_ = swarm.get_swarm_states_history[j]
     time = t
     plt.plot(states[0, :], states[1, :], label='estimated Vehicle ' + str(j))
-    plt.plot(states_[0, 1:], states_[1, 1:], label='true Vehicle ' + str(j))
+    plt.plot(states_[0, :], states_[1, :], label='true Vehicle ' + str(j))
     # plt.quiver(states[0, :], states[1, :], np.cos(states[2, :]), np.sin(states[2, :]), scale=20)
     plt.legend()
     plt.title('Vehicle trajectories')
@@ -308,7 +308,7 @@ for l in range(3):
     for j in range(nb_agents):
         states = x_res[j].transpose()
         states_ = get_swarm_states_history[j]
-        plt.plot(states[l, :] - states_[l, 1:], label='Vehicle '+str(j))
+        plt.plot(states[l, :] - states_[l, :], label='Vehicle '+str(j))
 
     # plt.quiver(states[0, :], states[1, :], np.cos(states[2, :]), np.sin(states[2, :]), scale=20)
     plt.legend()

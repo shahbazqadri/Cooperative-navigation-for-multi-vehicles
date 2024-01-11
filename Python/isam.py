@@ -14,27 +14,29 @@ agent = Agent()
 unicycle = agent.unicycle
 nx = 3
 nu = 2
-Delta_t   = 0.01
-T = 50 #s
+Delta_t   = 0.1
+T = 150 #s
 # finding the number of decimal places of Delta_t
 precision = abs(D(str(Delta_t)).as_tuple().exponent)
 t         = np.arange(0,T,Delta_t)
 t = np.round(t, precision) # to round off python floating point precision errors
-tinc = 0.5 #sec
+tinc = 10 #sec
 vel         = 30 #m/s
 omega_max = 5 #degrees/s
 std_omega = np.deg2rad(0.57) #degrees/s
 std_v     = 0.01 #m/s
 std_range = 0.01 #m
 f_range   = 100 #Hz
-f_odom    = 100 #Hz
+f_odom    = 10 #Hz
 f_waypt  = 1
 
-nb_agents =4
-adjacency = (np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
+nb_agents = 5
+adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#(np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
 # Set initial and end position
-pos0 = np.array([[0.,10.,10.,0.],[0.,0.,10.,10.]])
-posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
+# pos0 = np.array([[0.,10.,10.,0.],[0.,0.,10.,10.]])
+# posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
+pos0 = 10*np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.]])
+posf = 100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
 print('Done.')
 swarm =  Swarm()
 swarm.update_adjacency(adjacency)
@@ -176,7 +178,7 @@ for k in range(len(t)):
 v = gtsam.Values()
 # set initial state as prior
 X0 = np.zeros((nx, nb_agents))
-theta0 = [0, 0, 0, 0]
+theta0 = [0, 0, 0, 0, 0]
 for j in range(nb_agents):
     X0[:, j:j + 1] = np.vstack((pos0[:, j:j + 1], np.array([[theta0[j]]])))
 
@@ -305,7 +307,7 @@ for j in range(nb_agents):
     states_ = swarm.get_swarm_states_history[j]
     time = t
     plt.plot(states[0, :], states[1, :], label='estimated Vehicle ' + str(j))
-    plt.plot(states_[0, 1:], states_[1, 1:], label='true Vehicle ' + str(j))
+    plt.plot(states_[0, :], states_[1, :], label='true Vehicle ' + str(j))
     # plt.quiver(states[0, :], states[1, :], np.cos(states[2, :]), np.sin(states[2, :]), scale=20)
     plt.legend()
     plt.title('Vehicle trajectories')
@@ -319,7 +321,7 @@ for l in range(3):
     for j in range(nb_agents):
         states = x_res[j].transpose()
         states_ = get_swarm_states_history[j]
-        plt.plot(states[l, :] - states_[l, 1:], label='Vehicle '+str(j))
+        plt.plot(states[l, :] - states_[l, :], label='Vehicle '+str(j))
 
     # plt.quiver(states[0, :], states[1, :], np.cos(states[2, :]), np.sin(states[2, :]), scale=20)
     plt.legend()
