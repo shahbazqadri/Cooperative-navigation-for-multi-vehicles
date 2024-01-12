@@ -11,6 +11,7 @@ import numpy as np
 from agent import Agent
 from decimal import Decimal as D
 
+# Vehicle class
 class Vehicle(object):
     wp_idx = 0
     adjacency = None # adjacency matrix: initialized during runtime by swarm class
@@ -49,22 +50,27 @@ class Vehicle(object):
         # estimator param
         self.use_estimation = False
 
+    # Set initial vehicle position
     def set_initPos(self, initPos):
         # set initial position
         self.states[0:2,:] = initPos
 
+    # Set final vehicle position
     def set_endPos(self, endPos):
         # set end position
         self.target_point = endPos
 
+    # Set initial vehicle pose
     def set_initPose(self, initPose):
         # set initial position
         self.states = initPose
 
+    # Set final vehicle pose
     def set_endPose(self, endPose):
         # set end position
         self.target_point = endPose[:2,:]
 
+    # Update vehicle control, state, and measurement
     def update_state(self, time):
         # update_state: compute the new vehicle state
         self.update_measurements(time)
@@ -75,7 +81,7 @@ class Vehicle(object):
         self.states = self.next_states
         self.states_history = np.hstack((self.states_history, self.states))
 
-
+    # Update kinematics
     def update_kinematics(self):
         # compute kinematics
         agent = Agent()
@@ -84,6 +90,8 @@ class Vehicle(object):
         inputs = np.array([[self.v],[self.omega]])
 
         self.next_states = U.discrete_step(states,inputs,self.Delta_t)
+
+    # Update vehicle measurements
     def update_measurements(self, time):
         # updata sensor measurements: update the odom measurements
         odom_period = 1./self.f_odom
@@ -92,7 +100,7 @@ class Vehicle(object):
             self.meas    = meas_encoder
             self.meas_history= np.hstack((self.meas_history,meas_encoder))
 
-
+    # Update vehicle controller
     def update_controller(self):
         if self.use_estimation == True:
             self.vehicle_pos = self.states_est[:2,:]
@@ -129,6 +137,7 @@ class Vehicle(object):
 
         self.ctrl_cmd = np.array([[self.omega],[self.v]])
         self.ctrl_cmd_history = np.hstack((self.ctrl_cmd_history, self.ctrl_cmd))
+
 
     def update_waypoints_ctrl(self, time):
         if self.use_estimation is True:
