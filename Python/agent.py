@@ -1,24 +1,24 @@
+'''
+Helper vehicle class for multiagent estimation discussed in
+Rutkowski, Adam J., Jamie E. Barnes, and Andrew T. Smith. "Path planning for optimal cooperative navigation." 2016 IEEE/ION Position, Location and Navigation Symposium (PLANS). IEEE, 2016.
+
+Authors: Shahbaz P Qadri Syed, He Bai
+'''
+
 import numpy as np
-from Kinematics import Kinematics
-from decimal import Decimal as D
-# import sympy as sp
-# x_, y_, theta_, dt, v_, g1, g2 = sp.symbols('x_, y_, theta_, dt, v_, g1, g2 ')
-# vehicle_pos_ = sp.Matrix([[x_],[y_]])
-# target_pos_ = sp.Matrix([[g1],[g2]])
-# rel_pos_ = target_pos_ - vehicle_pos_
-# vehicle_vel_ = sp.Matrix([[v_ * sp.cos(theta_)], [v_ * sp.sin(theta_)]])
-# vec_cos_ = sum(sp.matrix_multiply_elementwise(rel_pos_[:, 0], vehicle_vel_[:, 0])) / (
-#             (rel_pos_.norm()) * (vehicle_vel_.norm()))
-# u_jac = sp.diff(vec_cos_, sp.Matrix([[x_],[y_],[theta_]])).simplify()
+
+# Agent class
 class Agent:
     def __init__(self):
         self.unicycle = self.Unicycle()
 
-
     class Unicycle:
         def __init__(self):
             pass
+        # Discrete unicycle dynamics
         def discrete_step(self, states, inputs, Delta_t):
+            '''Originally implemented in MATLAB by Hao Chen'''
+
             x = states[0,:]
             y = states[1,:]
             theta = states[2,:]
@@ -32,7 +32,9 @@ class Agent:
 
             return np.vstack((x_k1, y_k1, theta_k1)).reshape(3,1)
 
+        # Controller update
         def update_controller(self, states, target, v, omega_max, Delta_t):
+            ''' Part of the following code was originally implemented in MATLAB by Hao Chen'''
 
             self.vehicle_pos = states[:2, :]
             self.vehicle_theta = states[2:, :]
@@ -88,11 +90,13 @@ class Agent:
 
             return np.array([[v], [self.omega]]), jac
 
+        # Jacobian of X_{k+1} w.r.t X_k
         def dyn_jacobian(self, states, inputs, Delta_t):
             v = inputs[0, 0]
             omega = inputs[1, 0]
             return np.array([[1,0,0],[0,1,0],[-Delta_t*v*np.sin(Delta_t*omega/2 + states[2,0])*np.sinc(0.159154943091895*Delta_t*omega),Delta_t*v*np.cos(Delta_t*omega/2 + states[2,0])*np.sinc(0.159154943091895*Delta_t*omega), 1]]).transpose()
 
+        # Jacobian of X_{k+1} w.r.t U_k
         def u_jacobian(self, states, inputs, Delta_t):
             v = inputs[0, 0]
             omega = inputs[1, 0]
@@ -102,7 +106,3 @@ class Agent:
             return np.array([[Delta_t*np.cos(c*omega + states[2,0])*np.sinc(c*omega/np.pi), term1],
                                          [Delta_t*np.sin(c*omega + states[2,0])*np.sinc(c*omega/np.pi), term2],
                                          [0, Delta_t]])
-
-        # def jacobian_ux(self, states, inputs, target_pos, Delta_t):
-        #
-        #     pass

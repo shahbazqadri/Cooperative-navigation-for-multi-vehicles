@@ -1,7 +1,16 @@
+'''
+Helper swarm class for multiagent estimation discussed in
+Rutkowski, Adam J., Jamie E. Barnes, and Andrew T. Smith. "Path planning for optimal cooperative navigation." 2016 IEEE/ION Position, Location and Navigation Symposium (PLANS). IEEE, 2016.
+
+Original MATLAB implementation by Hao Chen
+
+Python implementation by Shahbaz P Qadri Syed, He Bai
+'''
 import matplotlib.pyplot as plt
 import numpy as np
 from Vehicle import Vehicle
 
+# Swarm class
 class Swarm():
     def __init__(self):
         self.vehicles = []
@@ -9,44 +18,50 @@ class Swarm():
         self.timestamp = []
         self.meas_range = 0
         self.swarm_measRange_history = []
-
         self.est_X = []
 
-
+    # Create vehicle object
     def add_vehicle(self, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom):
         self.nb_agents += 1
         vehicle = Vehicle(Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom)
         self.vehicles.append(vehicle)
 
+    # Add multiple vehicles to swarm object
     def add_n_vehicles(self, vehicle, n):
         for i in range(n):
             self.add_vehicle(vehicle)
 
-
+    # Set initial swarm position
     def set_swarm_initPos(self, pos):
         for i in range(self.nb_agents):
             self.vehicles[i].set_initPos(pos[:,i:i+1])
 
+    # Set final swarm position
     def set_swarm_endpos(self, pos):
         for i in range(self.nb_agents):
             self.vehicles[i].set_endPos(pos[:,i:i+1])
 
+    # Set initial swarm pose
     def set_swarm_initPose(self, pose):
         for i in range(self.nb_agents):
             self.vehicles[i].set_initPose(pose[:,i:i+1])
 
+    # Set final swarm pose
     def set_swarm_endpose(self, pose):
         for i in range(self.nb_agents):
             self.vehicles[i].set_endPose(pose[:,i:i+1])
 
+    # Set swarm waypoints
     def set_swarm_waypoints(self, waypoints):
         for i in range(self.nb_agents):
             self.vehicles[i].waypoints = waypoints[i]
 
+    # Set swarm end states
     def set_swarm_endStates(self, states):
         for i in range(self.nb_agents):
             self.vehicles[i].set_endPos(states[:,i:i+1])
 
+    # Update swarm states
     def update_state(self, time):
         for i in range(self.nb_agents):
             self.vehicles[i].update_state(time)
@@ -59,15 +74,16 @@ class Swarm():
         self.vehicles[0].states_est = self.est_X[:3,:]
         self.vehicles[1].states_est = self.est_X[3:,:]
 
+    # Update swarm adjacency matrix
     def update_adjacency(self, adjacency):
         for i in range(self.nb_agents):
             self.vehicles[i].adjacency = adjacency
             self.vehicles[i].measRange_history = np.empty((self.nb_agents,1))
             self.vehicles[i].count = 0
 
+    # Generate swarm range measurements
     def update_measRange(self):
-        #update sensor measurements
-
+        #update range sensor measurements
         measRange_matrix = np.zeros((self.nb_agents, self.nb_agents))
         for j in range(self.nb_agents):
             for jj in range(self.nb_agents):
@@ -75,21 +91,20 @@ class Swarm():
                     vehicle_pos = self.vehicles[j].states[:2,:]
                     neighbor_pos = self.vehicles[jj].states[:2,:]
                     meas_range  =  np.linalg.norm(vehicle_pos - neighbor_pos) + self.vehicles[j].std_range*np.random.randn()
-
                     # if measRange_matrix[j, jj] == 0 and measRange_matrix[jj,j] == 0:
                     measRange_matrix[j,jj] = meas_range
 
         for j in range(self.nb_agents):
             self.vehicles[j].measRange_history = np.hstack((self.vehicles[j].measRange_history, measRange_matrix[j:j+1,:].transpose()))
 
-
+    # Generate swarm states history
     def  get_swarm_states_history_(self):
         self.get_swarm_states_history = []
         for i in range(self.nb_agents):
             self.vehicles[i].states_history = np.delete(self.vehicles[i].states_history, 0, 1)
             self.get_swarm_states_history.append(self.vehicles[i].states_history)
 
-
+    # Plot swarm states history
     def plot_swarm_traj(self):
         for i in range(self.nb_agents):
             states = self.get_swarm_states_history[i]
@@ -102,6 +117,7 @@ class Swarm():
         plt.ylabel('y (m)')
         plt.show()
 
+    # Plot swarm heading
     def plot_swarm_heading(self):
         for i in range(self.nb_agents):
             states = self.get_swarm_states_history[i]

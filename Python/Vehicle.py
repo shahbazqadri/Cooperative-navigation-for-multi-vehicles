@@ -1,43 +1,48 @@
+'''
+Helper vehicle class for multiagent estimation discussed in
+Rutkowski, Adam J., Jamie E. Barnes, and Andrew T. Smith. "Path planning for optimal cooperative navigation." 2016 IEEE/ION Position, Location and Navigation Symposium (PLANS). IEEE, 2016.
+
+Original MATLAB implementation by Hao Chen
+
+Python implementation by Shahbaz P Qadri Syed, He Bai
+'''
+
 import numpy as np
-from Kinematics import Kinematics
+from agent import Agent
 from decimal import Decimal as D
+
 class Vehicle(object):
     wp_idx = 0
-
-    #graph param
-    adjacency = None
+    adjacency = None # adjacency matrix: initialized during runtime by swarm class
 
     def __init__(self, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom):
         # system param
-        self.Delta_t = Delta_t
-        self.sim_t   = t
-        self.omega   = 0.
-        self.v       = v
-        self.std_omega = std_omega
-        self.std_range = std_range
-        self.std_v     = std_v
-        self.f_range   = f_range
-        self.f_odom    = f_odom
+        self.Delta_t = Delta_t #step size of discretization
+        self.sim_t   = t # time intervals
+        self.omega   = 0. # angular velocity
+        self.v       = v # linear velocity
+        self.std_omega = std_omega # std deviation of ang vel measurement
+        self.std_range = std_range # std deviation of range measurement
+        self.std_v     = std_v # std deviation of linear vel measurement
+        self.f_range   = f_range # frequency of range measurement
+        self.f_odom    = f_odom # frequency of odometry measurement
 
-        # controller param
+        # controller parameters
         self.ctrl_cmd = np.empty((2,1))
         self.ctrl_cmd_history = np.empty((2,1))
 
-        # states param
+        # states parameters
         self.states  = np.zeros((3,1))
         self.states_est = np.zeros((3,1))
         self.last_states = np.zeros((3,1))
         self.next_states = np.zeros((3,1))
         self.states_history = np.empty((3,1))
 
-        # odom measurements param
+        # odom measurements parameters
         self.meas = np.empty((2,1))
         self.meas_history = np.empty((2,1))
 
-        # # range measurements param
-        # self.measRange_history = np.empty(())
-
-        # navigation param
+        # navigation parameters
         self.target_point = np.array([[3000],[3000]])
         self.waypoints    = []
 
@@ -73,18 +78,16 @@ class Vehicle(object):
 
     def update_kinematics(self):
         # compute kinematics
-        K = Kinematics()
+        agent = Agent()
+        U = agent.unicycle
         states = self.states
         inputs = np.array([[self.v],[self.omega]])
 
-        self.next_states = K.discrete_unicycle(states,inputs,self.Delta_t)
-
+        self.next_states = U.discrete_step(states,inputs,self.Delta_t)
     def update_measurements(self, time):
         # updata sensor measurements: update the odom measurements
         odom_period = 1./self.f_odom
         if D(str(time) )% D(str(odom_period ))== 0.:
-            # print(time)
-            # self.count += 1
             meas_encoder = np.array([[self.v + self.std_v*np.random.randn()],[self.omega + self.std_omega*np.random.randn()]])
             self.meas    = meas_encoder
             self.meas_history= np.hstack((self.meas_history,meas_encoder))
