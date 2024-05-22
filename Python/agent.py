@@ -31,6 +31,36 @@ class Agent:
             theta_k1 = theta + omega*Delta_t
 
             return np.vstack((x_k1, y_k1, theta_k1)).reshape(3,1)
+        
+        # given xk, xk1, find corresponding uk
+        def find_u(self, x, xp1, Delta_t): 
+            e = xp1 - x
+            th = x[2,:]
+            omega = e[2,:]/Delta_t
+            mu = e[0,:] * np.cos(th + omega * Delta_t/2.0) + e[1,:] * np.sin(th + omega * Delta_t/2.0)
+            v = mu / Delta_t /np.sinc(1/np.pi*(omega * Delta_t/2.0))
+            inputs = np.array([v, omega]).reshape((2,1))
+            return inputs
+        
+        
+        def find_u_jacobian(self, x, xp1, Delta_t):
+            omega = (xp1[2,:] - x[2,:])/Delta_t
+            theta = x[2,:]
+            mu = (xp1[0,:] - x[0,:]) * np.cos(theta + (omega*Delta_t)/2) + (xp1[1,:] - x[1,:]) * np.sin(theta + (omega*Delta_t)/2)
+            theta1 = xp1[2,:]
+            jac1 = np.zeros((2,3)) 
+            jac0 = np.zeros((2,3))
+            # partial omega/partial xp1, and partial omega/partial x 
+            jac1[1,2] = 1/Delta_t
+            jac0[1,2] = -1/Delta_t
+            # partial v/ partial xp1
+            jac1[0,0] = 1/Delta_t/np.sinc((omega*Delta_t)/(2*np.pi)) * np.cos(theta + (omega*Delta_t)/2)
+            jac1[0,1] = 1/Delta_t/np.sinc((omega*Delta_t)/(2*np.pi)) * np.sin(theta + (omega*Delta_t)/2)
+            jac1[0,2] = 0.5 * 1/Delta_t/np.sinc((omega*Delta_t)/(2*np.pi)) * ( - (xp1[0,:] - x[0,:]) * np.sin(theta + (omega*Delta_t)/2) + (xp1[1,:] - x[1,:]) * np.cos(theta + (omega*Delta_t)/2)) + mu / Delta_t * (- 0.5 / np.sinc((omega*Delta_t)/(2*np.pi)) ** 2 * (np.cos((omega*Delta_t)/2) - np.sinc((omega*Delta_t)/(2*np.pi)))/(omega * Delta_t/2))
+            jac0[0,0] = - 1/Delta_t/np.sinc((omega*Delta_t)/(2*np.pi)) * np.cos(theta + (omega*Delta_t)/2)
+            jac0[0,1] = - jac1[0,1]
+            jac0[0,2] = 0.5 * 1/Delta_t/np.sinc((omega*Delta_t)/(2*np.pi)) * ( - (xp1[0,:] - x[0,:]) * np.sin(theta + (omega*Delta_t)/2) + (xp1[1,:] - x[1,:]) * np.cos(theta + (omega*Delta_t)/2)) - mu / Delta_t * (- 0.5 / np.sinc((omega*Delta_t)/(2*np.pi)) ** 2 * (np.cos((omega*Delta_t)/2) - np.sinc((omega*Delta_t)/(2*np.pi)))/(omega * Delta_t/2))
+            return jac0, jac1
 
         # Controller update
         def update_controller(self, states, target, v, omega_max, Delta_t):

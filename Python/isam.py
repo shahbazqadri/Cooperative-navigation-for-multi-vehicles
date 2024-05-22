@@ -14,6 +14,7 @@ from typing import Optional, List
 from functools import partial
 import matplotlib.pyplot as plt
 from decimal import Decimal as D
+
 import random
 random.seed(10)
 
@@ -58,23 +59,23 @@ print('Done.')
 print('Propagating true state and generating measurements........')
 swarm.update_adjacency(adjacency)
 
-# propagate the swarm system
-for tt in t:
-    # update vehicle states and plot
-    swarm.update_state(tt)
-    swarm.update_measRange()
+# # propagate the swarm system
+# for tt in t:
+#     # update vehicle states and plot
+#     swarm.update_state(tt)
+#     swarm.update_measRange()
 
-for i in range(nb_agents):
-    swarm.vehicles[i].meas_history = np.delete(swarm.vehicles[i].meas_history, 0, 1)
-    swarm.vehicles[i].measRange_history = np.delete(swarm.vehicles[i].measRange_history, 0, 1)
-    if i == 0:
-        meas_history = swarm.vehicles[i].meas_history
-    else:
-        meas_history = np.vstack((meas_history, swarm.vehicles[i].meas_history))
+# for i in range(nb_agents):
+#     swarm.vehicles[i].meas_history = np.delete(swarm.vehicles[i].meas_history, 0, 1)
+#     swarm.vehicles[i].measRange_history = np.delete(swarm.vehicles[i].measRange_history, 0, 1)
+#     if i == 0:
+#         meas_history = swarm.vehicles[i].meas_history
+#     else:
+#         meas_history = np.vstack((meas_history, swarm.vehicles[i].meas_history))
 
-swarm.get_swarm_states_history_()
-swarm.plot_swarm_traj()
-get_swarm_states_history = swarm.get_swarm_states_history
+# swarm.get_swarm_states_history_()
+# swarm.plot_swarm_traj()
+# get_swarm_states_history = swarm.get_swarm_states_history
 
 print('Initializing factor graph...........')
 S0 = 1e-4*np.eye(nx*nb_agents)
@@ -175,20 +176,32 @@ isam = gtsam.ISAM2()
 initialized = False
 k = 0
 for k in range(0, len(t)):
+    tt = t[k]#k * Delta_t
+    swarm.update_state(tt)
+    swarm.update_measRange()    
     if k < len(t) - 1:
         # Dynamics factor
         odom_period = 1. / f_odom
         if D(str(t[k])) % D(str(odom_period)) == 0.:
             idx = D(str(t[k])) // D(str(odom_period))
             idx_bias = D(str(t[0])) // D(str(odom_period))
+            for i in range(nb_agents):
+
+                swarm.vehicles[i].meas_history = np.delete(swarm.vehicles[i].meas_history, 0, 1)
+                if k == 0:
+                    swarm.vehicles[i].measRange_history = np.delete(swarm.vehicles[i].measRange_history, 0, 1)
+                if i == 0:
+                    meas_history = swarm.vehicles[i].meas_history[:,-1:]
+                else:
+                    meas_history = np.vstack((meas_history, swarm.vehicles[i].meas_history[:,-1:]))
             gf = gtsam.CustomFactor(dynamics_noise, [X[k], X[(k + 1)]],
-                                    partial(error_dyn, meas_history[:, int(idx - idx_bias)]))
+                                    partial(error_dyn, meas_history))
             graph.add(gf)
 
             # Initial values for optimizer
             for j in range(nb_agents):
                 X_val[j * nx:(j + 1) * nx, :] = unicycle.discrete_step(X_val[j * nx:(j + 1) * nx, :],
-                                                                       meas_history[j * nu:(j + 1) * nu, k:k + 1].reshape(
+                                                                       meas_history[j * nu:(j + 1) * nu, :].reshape(
                                                                            nu, 1), Delta_t)
             v.insert(X[k+1], X_val)
 
@@ -226,6 +239,11 @@ for k in range(0, len(t)):
             count = 0
     else:
         count += 1
+
+
+swarm.get_swarm_states_history_()
+swarm.plot_swarm_traj()
+get_swarm_states_history = swarm.get_swarm_states_history
 
 print(graph)
 print('Done.')
