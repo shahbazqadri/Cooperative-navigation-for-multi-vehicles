@@ -25,57 +25,135 @@ TRUTH = []
 EST = []
 
 for MC_RUN in range(MC_TOTAL):
+    # print(MC_RUN)
+    #
+    # #print('Initializing agents.........')
+    # agent = Agent()
+    # unicycle = agent.unicycle
+    # nx = 3
+    # nu = 2
+    # Delta_t   = 0.1
+    # T = 150 #s
+    # # finding the number of decimal places of Delta_t
+    # precision = abs(D(str(Delta_t)).as_tuple().exponent)
+    # t         = np.arange(0,T,Delta_t)
+    # t = np.round(t, precision) # to round off python floating point precision errors
+    # tinc = 1.0#0.5 #sec
+    # vel         = 30 #m/s
+    # omega_max = 5 #degrees/s
+    # std_omega = np.deg2rad(0.57) #degrees/s
+    # std_v     = 0.01 #m/s
+    # std_range = 0.01 #m
+    # f_range   = 10 #Hz
+    # f_odom    = 10 #Hz
+    # f_waypt  = 1
+    # estimated_states_history = []
+    # k_old = 0
+    #
+    # nb_agents = 5
+    # adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#(np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
+    # # Set initial and end position
+    # # pos0 = np.array([[0.,10.,10.,0.],[0.,0.,10.,10.]])
+    # # posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
+    # pos0 = 10*np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.]])
+    # posf = pos0 + np.ones((2,nb_agents)) * vel * T#100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
+    # #print('Done.')
+    #
+    # swarm =  Swarm()
+    # swarm.update_adjacency(adjacency)
+    # for i in range(nb_agents):
+    #     swarm.add_vehicle(Delta_t, t, vel, std_omega, std_v, std_range, f_range, f_odom)
+    # swarm.set_swarm_initPos(pos0)
+    # swarm.set_swarm_endpos(posf)
+    # #print('Done.')
+    #
+    # #print('Propagating true state and generating measurements........')
+    # swarm.update_adjacency(adjacency)
+    #
+    # # # propagate the swarm system
+    # # for tt in t:
+    # #     # update vehicle states and plot
+    # #     swarm.update_state(tt)
+    # #     swarm.update_measRange()
+    #
+    # # for i in range(nb_agents):
+    # #     swarm.vehicles[i].meas_history = np.delete(swarm.vehicles[i].meas_history, 0, 1)
+    # #     swarm.vehicles[i].measRange_history = np.delete(swarm.vehicles[i].measRange_history, 0, 1)
+    # #     if i == 0:
+    # #         meas_history = swarm.vehicles[i].meas_history
+    # #     else:
+    # #         meas_history = np.vstack((meas_history, swarm.vehicles[i].meas_history))
+    #
+    # # swarm.get_swarm_states_history_()
+    # # swarm.plot_swarm_traj()
+    # # get_swarm_states_history = swarm.get_swarm_states_history
+    #
+    # #print('Initializing factor graph...........')
+    # S0 = 1e-4*np.eye(nx*nb_agents)
+    # prior_noise = gtsam.noiseModel.Gaussian.Covariance(S0)
+    # dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1))
+    #
+    # # Create an empty Gaussian factor graph
+    # graph = gtsam.NonlinearFactorGraph()
     print(MC_RUN)
 
-    #print('Initializing agents.........')
+    # print('Initializing agents.........')
     agent = Agent()
     unicycle = agent.unicycle
-    nx = 3
-    nu = 2
-    Delta_t   = 0.1
-    T = 150 #s
+    nx = 4
+    nu = 3
+    Delta_t = 0.1
+    T = 150  # s
     # finding the number of decimal places of Delta_t
     precision = abs(D(str(Delta_t)).as_tuple().exponent)
-    t         = np.arange(0,T,Delta_t)
-    t = np.round(t, precision) # to round off python floating point precision errors
-    tinc = 1.0#0.5 #sec
-    vel         = 30 #m/s
-    omega_max = 5 #degrees/s
-    std_omega = np.deg2rad(0.57) #degrees/s
-    std_v     = 0.01 #m/s
-    std_range = 0.01 #m
-    f_range   = 10 #Hz
-    f_odom    = 10 #Hz
-    f_waypt  = 1
+    t = np.arange(0, T, Delta_t)
+    t = np.round(t, precision)  # to round off python floating point precision errors
+    tinc = 1.0  # 0.5 #sec
+    vel = 30  # m/s
+    # omega_max = 10 #degrees/s
+    std_omega = 0 * np.deg2rad(0.57)  # degrees/s
+    std_v = 0 * 0.01  # * 10 #m/s
+    std_z_vel = 0 * 0.01  # * 10 #m/s
+    std_range = 0.01 * 100  # m
+    S_Q = np.diag([0.1, 0.1, 0.1, 0.01]) * Delta_t
+    f_range = 10  # Hz
+    f_odom = 10  # Hz
+    f_waypt = 1
     estimated_states_history = []
     k_old = 0
-    
+
     nb_agents = 5
-    adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#(np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
+    adjacency = np.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1], [1, 0, 0, 0, 0]])  #
+    # adjacency = np.array([[0,1,1,0,0],[0,0,1,0,0],[0,0,0,1,0],[1,0,0,0,1],[1,0,0,0,0]])#
+
+    # adjacency = (np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))#np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#(np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
     # Set initial and end position
     # pos0 = np.array([[0.,10.,10.,0.],[0.,0.,10.,10.]])
     # posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
-    pos0 = 10*np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.]])
-    posf = pos0 + np.ones((2,nb_agents)) * vel * T#100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
-    #print('Done.')
-    
-    swarm =  Swarm()
+    pos0 = 10 * np.array([[0., 10., 10., 0., 20.], [0., 0., 10., 10., 10.], [0., 0., 0., 0., 0.]])
+    posf = np.zeros_like(pos0)
+    posf[:2, :] = pos0[:2, :] + np.ones(
+        (2, nb_agents)) * vel * 100  # 100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
+    posf[2:, :] = 1000 * np.array([[1., 1., 1., 1., 1.]])
+    # print('Done.')
+
+    swarm = Swarm()
     swarm.update_adjacency(adjacency)
     for i in range(nb_agents):
-        swarm.add_vehicle(Delta_t, t, vel, std_omega, std_v, std_range, f_range, f_odom)
+        swarm.add_vehicle(Delta_t, t, vel, std_omega, std_v, std_range, std_z_vel, f_range, f_odom, S_Q)
     swarm.set_swarm_initPos(pos0)
     swarm.set_swarm_endpos(posf)
-    #print('Done.')
-    
-    #print('Propagating true state and generating measurements........')
+    # print('Done.')
+
+    # print('Propagating true state and generating measurements........')
     swarm.update_adjacency(adjacency)
-    
+
     # # propagate the swarm system
     # for tt in t:
     #     # update vehicle states and plot
     #     swarm.update_state(tt)
     #     swarm.update_measRange()
-    
+
     # for i in range(nb_agents):
     #     swarm.vehicles[i].meas_history = np.delete(swarm.vehicles[i].meas_history, 0, 1)
     #     swarm.vehicles[i].measRange_history = np.delete(swarm.vehicles[i].measRange_history, 0, 1)
@@ -83,26 +161,34 @@ for MC_RUN in range(MC_TOTAL):
     #         meas_history = swarm.vehicles[i].meas_history
     #     else:
     #         meas_history = np.vstack((meas_history, swarm.vehicles[i].meas_history))
-    
+
     # swarm.get_swarm_states_history_()
     # swarm.plot_swarm_traj()
     # get_swarm_states_history = swarm.get_swarm_states_history
-    
-    #print('Initializing factor graph...........')
-    S0 = 1e-4*np.eye(nx*nb_agents)
+
+    # print('Initializing factor graph...........')
+    S0 = 1e-4 * np.eye(nx * nb_agents)
     prior_noise = gtsam.noiseModel.Gaussian.Covariance(S0)
-    dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1))
-    
+    dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(
+        np.array([std_v * Delta_t, 0., std_z_vel * Delta_t, std_omega * Delta_t] * nb_agents).reshape(nx * nb_agents,
+                                                                                                      1))  # in the body frame of each agent
+    cov = np.kron(np.eye(nb_agents), np.diag([std_v ** 2, std_omega ** 2, std_z_vel ** 2]))
+    input_noise = gtsam.noiseModel.Gaussian.Covariance(cov)
+    for j in range(nb_agents):
+        if j == 0:
+            S = swarm.vehicles[j].S_Q.T @ swarm.vehicles[j].S_Q
+        else:
+            S = sc.linalg.block_diag(S, swarm.vehicles[j].S_Q.T @ swarm.vehicles[j].S_Q)
+    process_noise = gtsam.noiseModel.Gaussian.Covariance(S)
     # Create an empty Gaussian factor graph
     graph = gtsam.NonlinearFactorGraph()
-    
     def parse_result(result, nb_agents, t):
         x_res = []
         for j in range(nb_agents):
             x_sol = np.zeros((len(t), nx))
             for k in range(len(t)):
                 x_sol[k, :] = result.atVector(X[k])[j * nx:(j + 1) * nx]
-            swarm.vehicles[j].states_est = x_sol[-1,:].reshape((3,1))
+            swarm.vehicles[j].states_est = x_sol[-1,:].reshape((4,1))
             #print(swarm.vehicles[j].states_est.shape)
             x_res.append(x_sol.T)
         return x_res
@@ -148,12 +234,12 @@ for MC_RUN in range(MC_TOTAL):
         n = measurement.shape[0]
     
         range_est = np.zeros((n,1))
-        vehicle_pos = X_[ego_idx * nx:((ego_idx + 1) * nx )- 1].reshape(2, 1)
+        vehicle_pos = X_[ego_idx * nx:((ego_idx + 1) * nx )- 1].reshape(3, 1)
     
         for j in range(n):
             jac = np.zeros((1, nx * nb_agents))
             neighbor_idx = neighbor_idx_set[j]
-            neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(2, 1)
+            neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(3, 1)
             range_ = np.linalg.norm(vehicle_pos - neighbor_pos)
             range_est[j,:] = range_
             jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = -(neighbor_pos - vehicle_pos).transpose()
@@ -253,7 +339,7 @@ for MC_RUN in range(MC_TOTAL):
             result = isam.calculateEstimate()
             estimated_states_history = parse_result(result, nb_agents, t[:k+1])
             s = np.random.randint(0,swarm.nb_agents)
-            swarm.MPC(s)
+            swarm.MPC(optim_agent=None)
             # for j in range(nb_agents):
             #     if k == (tinc/Delta_t):
             #         estimated_states_history.append(estimated_states[j])

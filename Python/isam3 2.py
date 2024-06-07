@@ -13,17 +13,20 @@ import gtsam
 from typing import Optional, List
 from functools import partial
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from decimal import Decimal as D
 import random
+
+# set random seed
 my_seed = 10
 random.seed(my_seed)
 np.random.seed(my_seed)
 
-MC_TOTAL = 20
+MC_TOTAL = 20 # Number of MC simulations
 
-TRUTH = []
-EST = []
-ERR = []
+TRUTH = [] # List of truth values
+EST = []   # List of estimated values
+ERR = []   # List of error values
 
 for MC_RUN in range(MC_TOTAL):
     print(MC_RUN)
@@ -31,21 +34,22 @@ for MC_RUN in range(MC_TOTAL):
     #print('Initializing agents.........')
     agent = Agent()
     unicycle = agent.unicycle
-    nx = 3
-    nu = 2
+    nx = 4
+    nu = 3
     Delta_t   = 0.1
-    T = 150 #s
+    T =  60 #s
     # finding the number of decimal places of Delta_t
     precision = abs(D(str(Delta_t)).as_tuple().exponent)
     t         = np.arange(0,T,Delta_t)
     t = np.round(t, precision) # to round off python floating point precision errors
-    tinc = 1.0#0.5 #sec
+    tinc = 1#0.5 #sec
     vel         = 30 #m/s
     #omega_max = 10 #degrees/s
-    std_omega = 0*np.deg2rad(0.57) #degrees/s
-    std_v     = 0*0.01 #* 10 #m/s
-    std_range = 0.01 * 100 #m
-    S_Q = np.diag([0.1, 0.1, 0.01]) * Delta_t
+    std_omega = 1*np.deg2rad(0.57) #degrees/s
+    std_v     = 1*0.01 #* 10 #m/s
+    std_z_vel = 1 * 0.01  # * 10 #m/s
+    std_range = 0.01 * 10#m
+    S_Q = np.diag([0.1, 0.1,0.1, 0.01]) * Delta_t
     f_range   = 10 #Hz
     f_odom    = 10 #Hz
     f_waypt  = 1
@@ -60,14 +64,16 @@ for MC_RUN in range(MC_TOTAL):
     # Set initial and end position
     # pos0 = np.array([[0.,10.,10.,0.],[0.,0.,10.,10.]])
     # posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
-    pos0 = 10*np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.]])
-    posf = pos0 + np.ones((2,nb_agents)) * vel * 100 #100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
+    pos0 = 10*np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.], [0.,0.,0.,0.,0.]])
+    posf = np.zeros_like(pos0)
+    posf[:2,:] = pos0[:2,:] + np.ones((2,nb_agents)) * vel * 100 #100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
+    posf[2:, :] = 200*np.array([[1.,1.,1.,1.,1.]])
     #print('Done.')
     
     swarm =  Swarm()
     swarm.update_adjacency(adjacency)
     for i in range(nb_agents):
-        swarm.add_vehicle(Delta_t, t, vel, std_omega, std_v, std_range, f_range, f_odom, S_Q)
+        swarm.add_vehicle(Delta_t, t, vel, std_omega, std_v, std_range, std_z_vel, f_range, f_odom, S_Q)
     swarm.set_swarm_initPos(pos0)
     swarm.set_swarm_endpos(posf)
     #print('Done.')
@@ -96,8 +102,8 @@ for MC_RUN in range(MC_TOTAL):
     #print('Initializing factor graph...........')
     S0 = 1e-4*np.eye(nx*nb_agents)
     prior_noise = gtsam.noiseModel.Gaussian.Covariance(S0)
-    dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1)) # in the body frame of each agent
-    cov = np.kron(np.eye(nb_agents), np.diag([std_v**2, std_omega**2]))
+    dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_z_vel*Delta_t, std_omega*Delta_t]*nb_agents).reshape(nx*nb_agents,1)) # in the body frame of each agent
+    cov = np.kron(np.eye(nb_agents), np.diag([std_v**2, std_omega**2, std_z_vel**2]))
     input_noise = gtsam.noiseModel.Gaussian.Covariance(cov)
     for j in range(nb_agents):
         if j == 0:
@@ -116,7 +122,7 @@ for MC_RUN in range(MC_TOTAL):
             x_sol = np.zeros((len(t), nx))
             for k in range(len(t)):
                 x_sol[k, :] = result.atVector(X[k])[j * nx:(j + 1) * nx]
-            swarm.vehicles[j].states_est = x_sol[-1,:].reshape((3,1))
+            swarm.vehicles[j].states_est = x_sol[-1,:].reshape((nx,1))
             swarm.vehicles[j].states_cov = cov[j*nx:(j+1)*nx, j*nx:(j+1)*nx]
             swarm.vehicles[j].est_err = np.hstack((swarm.vehicles[j].est_err, swarm.vehicles[j].states_est - swarm.vehicles[j].states))
             #print(swarm.vehicles[j].states_est.shape)
@@ -236,12 +242,12 @@ for MC_RUN in range(MC_TOTAL):
         n = measurement.shape[0]
     
         range_est = np.zeros((n,1))
-        vehicle_pos = X_[ego_idx * nx:((ego_idx + 1) * nx )- 1].reshape(2, 1)
+        vehicle_pos = X_[ego_idx * nx:((ego_idx + 1) * nx )- 1].reshape(3, 1)
     
         for j in range(n):
             jac = np.zeros((1, nx * nb_agents))
             neighbor_idx = neighbor_idx_set[j]
-            neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(2, 1)
+            neighbor_pos = X_[neighbor_idx*nx:(neighbor_idx+1)*nx-1].reshape(3, 1)
             range_ = np.linalg.norm(vehicle_pos - neighbor_pos)
             range_est[j,:] = range_
             jac[:,ego_idx*nx:((ego_idx+1)*nx)-1] = -(neighbor_pos - vehicle_pos).transpose()
@@ -347,7 +353,7 @@ for MC_RUN in range(MC_TOTAL):
             cov = isam.marginalCovariance(X[k])            
             estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
             s = np.random.randint(0,swarm.nb_agents)
-            swarm.MPC(optim_agent = None, use_cov = False, METRIC = 'obsv')
+            swarm.MPC(optim_agent = None, use_cov = False, METRIC = 'SAM')
             # for j in range(nb_agents):
             #     if k == (tinc/Delta_t):
             #         estimated_states_history.append(estimated_states[j])
@@ -411,7 +417,7 @@ for MC_RUN in range(MC_TOTAL):
     TRUTH.append(get_swarm_states_history)
     EST.append(estimated_states_history)
     ERR.append(EST_ERR)
-    
+    # print(EST_ERR)
     # for j in range(nb_agents):
     #     states = estimated_states_history[j]#x_res[j].transpose()
     #     states_ = swarm.get_swarm_states_history[j]
@@ -436,3 +442,54 @@ for MC_RUN in range(MC_TOTAL):
     #     plt.xlabel('timesteps')
     #     plt.ylabel(legends[l])
     #     plt.show()
+
+
+states = 0
+states_ = 0
+for j in range(nb_agents):
+    states = []
+    states_ = []
+    for i in range(MC_TOTAL):
+        states.append(EST[i][j])#x_res[j].transpose()
+        states_.append(TRUTH[i][j])
+        time = t
+
+    states_stacked = np.stack(states,axis=2)
+    states_stacked_ = np.stack(states_, axis=2)
+    states_mean = np.mean(states_stacked, axis= 2)
+    states_mean_ = np.mean(states_stacked_, axis=2)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(states_mean[0, :], states_mean[1, :],states_mean[2, :], label='estimated Vehicle ' + str(j))
+    ax.plot(states_mean_[0, :], states_mean_[1, :], states_mean_[2, :], label='true Vehicle ' + str(j))
+    # ax.plot(states_mean_[0, :]-states_mean[0, :],label='errorx'), states_mean_[1, :]-states_mean[1, :], states_mean_[2, :]-states_mean[2, :], label='error ' + str(j))
+    plt.legend()
+    plt.title('Vehicle trajectories')
+    plt.xlabel('x (m)')
+    plt.ylabel('y (m)')
+    plt.show()
+
+err = 0
+states_ = 0
+for j in range(nb_agents):
+    err = []
+    # states_ = []
+    for i in range(MC_TOTAL):
+        err.append(ERR[i][j])#x_res[j].transpose()
+        # states_.append(TRUTH[i][j])
+        time = t
+
+    err_stacked = np.stack(err,axis=2)
+    # states_stacked_ = np.stack(states_, axis=2)
+    err_norm = np.mean(err_stacked[:3], axis= 0)
+    err_norm_mean = np.mean(err_norm, axis=1)
+    fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot(err[0, :], states_mean[1, :],states_mean[2, :], label='estimated Vehicle ' + str(j))
+    plt.plot(err_norm_mean, label='error norm Vehicle ' + str(j))
+    # ax.plot(states_mean_[0, :]-states_mean[0, :],label='errorx'), states_mean_[1, :]-states_mean[1, :], states_mean_[2, :]-states_mean[2, :], label='error ' + str(j))
+    plt.legend()
+    plt.title('Vehicle trajectories')
+    plt.xlabel('e (m)')
+    plt.ylabel('timestep')
+    plt.show()

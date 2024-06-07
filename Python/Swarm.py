@@ -34,14 +34,15 @@ class Swarm():
         self.M = 5
 
     # Create vehicle object
-    def add_vehicle(self, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q = np.diag([0.1, 0.1, 0.02])):
+    def add_vehicle(self, Delta_t, t, v, std_omega, std_v, std_range, std_z_vel, f_range, f_odom, S_Q = np.diag([0.1, 0.1, 0.02])):
         self.nb_agents += 1
-        vehicle = Vehicle(Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q)
+        vehicle = Vehicle(Delta_t, t, v, std_omega, std_v, std_range, std_z_vel, f_range, f_odom, S_Q)
         self.omega_max = vehicle.omega_max
         self.nx = vehicle.nx
         self.std_omega = vehicle.std_omega # std deviation of ang vel measurement
         self.std_range = vehicle.std_range # std deviation of range measurement
         self.std_v     = vehicle.std_v # std deviation of linear vel measurement
+        self.std_z_vel = vehicle.std_z_vel  # std deviation of linear z-vel measurement
         self.vehicles.append(vehicle)
 
     # Add multiple vehicles to swarm object
@@ -107,7 +108,7 @@ class Swarm():
         return 1/np.linalg.det(M)
     
     def try_parallel(self, i,optim_agent,states,METRIC,U):
-        all_inputs = np.zeros((self.vehicles[0].nu, self.MPC_horizon, self.nb_agents))
+        all_inputs = np.zeros((self.vehicles[0].nu, self.MPC_horizon, self.nb_agents)) #(nu, H, N)
         for j in range(self.MPC_horizon):
             for n in range(self.nb_agents):
                 if n == int(optim_agent):
@@ -125,7 +126,7 @@ class Swarm():
             print('metric not implemented')
         return metrics
     
-    # cooeprative MPC
+    # cooperative MPC
     def MPC(self, optim_agent, use_cov = False, METRIC = 'obsv'):
         if use_cov == False:
             if optim_agent == None:
@@ -401,8 +402,8 @@ class Swarm():
         for j in range(self.nb_agents):
             for jj in range(self.nb_agents):
                 if self.vehicles[j].adjacency[j,jj] == 1:
-                    vehicle_pos = self.vehicles[j].states[:2,:]
-                    neighbor_pos = self.vehicles[jj].states[:2,:]
+                    vehicle_pos = self.vehicles[j].states[:3,:]
+                    neighbor_pos = self.vehicles[jj].states[:3,:]
                     meas_range  =  np.linalg.norm(vehicle_pos - neighbor_pos) + self.vehicles[j].std_range*np.random.randn()
                     # if measRange_matrix[j, jj] == 0 and measRange_matrix[jj,j] == 0:
                     measRange_matrix[j,jj] = meas_range
