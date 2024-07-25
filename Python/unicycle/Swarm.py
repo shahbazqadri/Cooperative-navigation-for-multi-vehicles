@@ -377,7 +377,7 @@ class Swarm():
     # Update swarm states
     def update_state(self, time):
         for i in range(self.nb_agents):
-            self.vehicles[i].update_state(time)
+            self.vehicles[i].update_state(time) #TODO: See function
 
     def addToLoop_estimator(self):
         self.vehicles[0].use_estimation = True
@@ -398,6 +398,7 @@ class Swarm():
     def update_measRange(self):
         #update range sensor measurements
         measRange_matrix = np.zeros((self.nb_agents, self.nb_agents))
+        # TODO: Update the measRange_matrix using range measurements from the simulator
         for j in range(self.nb_agents):
             for jj in range(self.nb_agents):
                 if self.vehicles[j].adjacency[j,jj] == 1:
@@ -406,6 +407,7 @@ class Swarm():
                     meas_range  =  np.linalg.norm(vehicle_pos - neighbor_pos) + self.vehicles[j].std_range*np.random.randn()
                     # if measRange_matrix[j, jj] == 0 and measRange_matrix[jj,j] == 0:
                     measRange_matrix[j,jj] = meas_range
+        # #
 
         for j in range(self.nb_agents):
             self.vehicles[j].measRange_history = np.hstack((self.vehicles[j].measRange_history, measRange_matrix[j:j+1,:].transpose()))

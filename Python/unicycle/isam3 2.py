@@ -46,22 +46,31 @@ for MC_RUN in range(MC_TOTAL):
     std_v     = 0*0.01 #* 10 #m/s
     std_range = 0.01 * 100 #m
     S_Q = np.diag([0.1, 0.1, 0.01]) * Delta_t
+
+    #TODO: frequency of range and odometry measurements from simulator
     f_range   = 10 #Hz
     f_odom    = 10 #Hz
+    # #
+
     f_waypt  = 1
     estimated_states_history = []
     k_old = 0
-    
+
+    #TODO: number of agents in the simulation and the adjacency graph of range measurement
     nb_agents = 5
-    adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#
+    adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])
+    # #
     #adjacency = np.array([[0,1,1,0,0],[0,0,1,0,0],[0,0,0,1,0],[1,0,0,0,1],[1,0,0,0,0]])#
 
     #adjacency = (np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))#np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#(np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))  
     # Set initial and end position
     # pos0 = np.array([[0.,10.,10.,0.],[0.,0.,10.,10.]])
     # posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
+
+    # TODO: Initial and final positions for simulator
     pos0 = 10*np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.]])
     posf = pos0 + np.ones((2,nb_agents)) * vel * 100 #100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
+    #  #
     #print('Done.')
     
     swarm =  Swarm()
@@ -272,7 +281,9 @@ for MC_RUN in range(MC_TOTAL):
     
     # set initial state as prior
     X0 = np.zeros((nx, nb_agents))
+    #TODO: initial orientation of the agents (at pos0)
     theta0 = [0, 0, 0, 0, 0]
+
     for j in range(nb_agents):
         X0[:, j:j + 1] = np.vstack((pos0[:, j:j + 1], np.array([[theta0[j]]])))
     
@@ -286,9 +297,10 @@ for MC_RUN in range(MC_TOTAL):
     initialized = False
     k = 0
     for k in range(0, len(t)):
+        # ALL the drones
         tt = t[k]#k * Delta_t
-        swarm.update_measRange()    
-        swarm.update_state(tt)
+        swarm.update_measRange() #TODO: See function
+        swarm.update_state(tt) #TODO: See function 
         if k < len(t) - 1:
             # Dynamics factor
             odom_period = 1. / f_odom
@@ -296,7 +308,7 @@ for MC_RUN in range(MC_TOTAL):
                 idx = D(str(t[k])) // D(str(odom_period))
                 idx_bias = D(str(t[0])) // D(str(odom_period))
                 for i in range(nb_agents):
-    
+                    # one drone at a time
                     swarm.vehicles[i].meas_history = np.delete(swarm.vehicles[i].meas_history, 0, 1)
                     if k == 0:
                         swarm.vehicles[i].measRange_history = np.delete(swarm.vehicles[i].measRange_history, 0, 1)

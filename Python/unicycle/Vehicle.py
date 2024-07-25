@@ -134,7 +134,11 @@ class Vehicle(object):
         # updata sensor measurements: update the odom measurements
         odom_period = 1./self.f_odom
         if D(str(time) )% D(str(odom_period ))== 0.:
+
+            # TODO: Update meas_encoder with encoder measurements from the simulator
             meas_encoder = np.array([[self.v + self.std_v*np.random.randn()],[self.omega + self.std_omega*np.random.randn()]])
+            # #
+
             self.meas    = meas_encoder
             self.meas_history= np.hstack((self.meas_history,meas_encoder))
 
