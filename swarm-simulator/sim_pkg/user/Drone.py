@@ -171,6 +171,7 @@ class Drone():
     #                    - input 
     # cooeprative MPC
     def MPC(self, optim_agent, use_cov = False, METRIC = 'obsv'):
+        print("MPC CALLED")
         if use_cov == False:
             if optim_agent == None:
                 self.vehicle.update_controller()
@@ -191,7 +192,9 @@ class Drone():
                 w = self.w_set[m_min,0]
 
                 # set the control
+                print(f"END OF MPC FOR ID: {self.id} OMEGA: {w}")
                 self.vehicle.omega = w
+                print(w)
         else:
             # use covariance information
             active_planning = False
@@ -229,6 +232,7 @@ class Drone():
                 m_min = np.argmin(metrics)
                 w = self.w_set[m_min,0]
                 # set the control
+                print(f"END OF MPCOPTIM FOR ID: {self.id} OMEGA: {w}")
                 self.vehicle.omega = w
     
 
@@ -388,8 +392,6 @@ class Drone():
 
         self.vehicle.measRange_history = np.hstack((self.vehicle.measRange_history, measRange_array))
 
-
-    
 
     # Generate swarm states history
     def  get_drone_states_history_(self):

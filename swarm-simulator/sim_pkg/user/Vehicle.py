@@ -142,7 +142,8 @@ class Vehicle(object):
 
             self.meas    = meas_encoder
             self.meas_history= np.hstack((self.meas_history,meas_encoder))
-
+            # print('meas_encoder:',meas_encoder)
+            # print('meas_history: ', self.meas_history)
     # Update vehicle controller
     def update_controller(self):
         if self.use_estimation == True:
