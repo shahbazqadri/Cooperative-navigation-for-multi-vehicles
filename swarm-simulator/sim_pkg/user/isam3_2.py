@@ -28,7 +28,7 @@ def trace_calls(frame, event, arg):                                   #
 logging.basicConfig(level=logging.DEBUG)                              # 
 #######################################################################
 def usr(robot):
-    # sys.settrace(trace_calls)
+    sys.settrace(trace_calls)
     id_var = robot.id
     # Initialize parameters and random seed
     my_seed = 10
@@ -78,6 +78,7 @@ def usr(robot):
     print("nb_neighbors: ", drone.nb_neighbors)
     # ISAM2 Setup       -       CHANGED nb_agents to (nb_neighbors + 1)
     S0 = 1e-4*np.eye(nx * (drone.nb_neighbors + 1))
+    print(S0.shape)
     prior_noise = gtsam.noiseModel.Gaussian.Covariance(S0)
     dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t] * (drone.nb_neighbors + 1)).reshape(nx * (drone.nb_neighbors + 1), 1)) # in the body frame of each agent
     cov = np.kron(np.eye(drone.nb_neighbors + 1), np.diag([std_v**2, std_omega**2]))
