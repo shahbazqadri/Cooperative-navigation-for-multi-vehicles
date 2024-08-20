@@ -1,8 +1,8 @@
 {
     "NUMBER_OF_ROBOTS": 5,
-    "COMM_RANGE": 20, 
+    "COMM_RANGE": 3000, 
     "PACKET_SUCCESS_PERC": 1.0, 
-    "NUM_OF_MSGS": 36, 
+    "NUM_OF_MSGS": 48, 
     "MSG_SIZE": 1792,
     "MSG_TYPE": 0,
     "TIME_ASYNC": 0,

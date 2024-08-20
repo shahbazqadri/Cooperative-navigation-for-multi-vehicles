@@ -7,7 +7,7 @@ from user.Drone import Drone
 from typing import Optional, List
 import scipy as sc
 from functools import partial
-
+import time
 ############################## DEBUGGING ##############################
 import sys                                                            #
 import pdb                                                            #
@@ -28,7 +28,7 @@ def trace_calls(frame, event, arg):                                   #
 logging.basicConfig(level=logging.DEBUG)                              # 
 #######################################################################
 def usr(robot):
-    sys.settrace(trace_calls)
+    # sys.settrace(trace_calls)
     id_var = robot.id
     # Initialize parameters and random seed
     my_seed = 10
@@ -37,18 +37,18 @@ def usr(robot):
     TRUTH = []
     EST = []
     ERR = []
-
+    
     agent = Agent()
     unicycle = agent.unicycle
-
-    # Constants
-    MC_TOTAL = 20 
     nx = 3
     nu = 2
     Delta_t = 0.1
     T = 1500  # seconds
+
     precision = abs(D(str(Delta_t)).as_tuple().exponent)
-    t = np.round(np.arange(0, T, Delta_t), precision)
+    t = np.arange(0, T, Delta_t)
+    t = np.round(t, precision)
+    tinc = 1.0
     vel = 30 # m/s
     std_omega = 0 * np.deg2rad(0.57)
     std_v = 0 * 0.01
@@ -57,12 +57,15 @@ def usr(robot):
     f_range = 10  # Hz
     f_odom = 10  # Hz
 
+    f_waypt = 1
+    estimated_states_history = []
+
     print (t)
     drone = Drone(id_var, Delta_t, t, vel, std_omega, std_v, std_range, f_range, f_odom, S_Q)
 
     adjacency = np.ones((5,5))-np.eye(5)#np.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1], [1, 0, 0, 0, 0]])
-    adjacency_bi_dir = adjacency + adjacency.T
-    drone.update_adjacency(adjacency_bi_dir)
+    # adjacency_bi_dir = adjacency + adjacency.T
+    drone.update_adjacency(adjacency)
     for neighbor_id,val in enumerate(drone.adjacency):
         if val == 1:
             drone.add_neighbor(neighbor_id)
@@ -98,11 +101,18 @@ def usr(robot):
         x_res = []
         for j in range(drone.nb_neighbors + 1):
             x_sol = np.zeros((len(t), nx))
-            for k in range(len(t)):
-                x_sol[k, :] = result.atVector(X[k])[j * nx:(j + 1) * nx]
-            drone.vehicle.states_est = x_sol[-1, :].reshape((3, 1))
-            drone.vehicle.states_cov = cov[j * nx:(j + 1) * nx, j * nx:(j + 1) * nx]
-            drone.vehicle.est_err = np.hstack((drone.vehicle.est_err, drone.vehicle.states_est - drone.vehicle.states))
+            if j == drone.id:
+                for k in range(len(t)):
+                    x_sol[k, :] = result.atVector(X[k])[j * nx:(j + 1) * nx]
+                drone.vehicle.states_est = x_sol[-1, :].reshape((3, 1))
+                drone.vehicle.states_cov = cov[j * nx:(j + 1) * nx, j * nx:(j + 1) * nx]
+                drone.vehicle.est_err = np.hstack((drone.vehicle.est_err, drone.vehicle.states_est - drone.vehicle.states))
+            else:
+                for k in range(len(t)):
+                    x_sol[k, :] = result.atVector(X[k])[j * nx:(j + 1) * nx]
+                drone.neighbors[j].states_est = x_sol[-1, :].reshape((3, 1))
+                drone.neighbors[j].states_cov = cov[j * nx:(j + 1) * nx, j * nx:(j + 1) * nx]
+                drone.neighbors[j].est_err = np.hstack((drone.vehicle.est_err, drone.vehicle.states_est - drone.vehicle.states))
             x_res.append(x_sol.T)
         return x_res
 
@@ -158,23 +168,24 @@ def usr(robot):
         return error
 
     graph = gtsam.NonlinearFactorGraph()    
+    X = []
+    for k in range(len(t)):
+        X.append(gtsam.symbol('x', k))
     v = gtsam.Values()
-    X = [gtsam.symbol('x', k) for k in range(len(t))]
-    isam = gtsam.ISAM2()
 
     # Set the first state for this drone and its neghbors
     X0 = np.zeros((nx, drone.nb_neighbors + 1))
     X0[:, 0:1] = np.vstack((pos0[:, drone.id].reshape(2,1), np.array([[theta0[drone.id]]])))
-    for j, neighbor in enumerate(drone.neighbors):
-        X0[:, j:j + 1] = np.vstack((pos0[:, neighbor.id:neighbor.id + 1], np.array([[theta0[neighbor.id]]])))   
+    for j in range(drone.nb_neighbors + 1):
+        if j < drone.nb_neighbors:
+            X0[:, j:j + 1] = np.vstack((pos0[:, drone.neighbors[j].id:drone.neighbors[j].id + 1], np.array([[theta0[drone.neighbors[j].id]]])))   
+        else:
+            X0[:, j:j + 1] = np.vstack((pos0[:, drone.id:drone.id + 1], np.array([[theta0[drone.id]]])))
     X0 = X0.T.flatten().reshape(nx * (drone.nb_neighbors + 1), 1)
 
-    if v.exists(X[0]):
-        print(f"prior factor for {X[0]} already exists")
-    elif graph.exists(X[0]):
-        print(f"Factor for {X[0]} already exist")
-    else:
-        print(f"Adding prior factor for {X[0]}")
+    
+
+    if (not v.exists(X[0])) and (not graph.exists(X[0])):
         graph.add(gtsam.PriorFactorVector(X[0], X0, prior_noise))
         v.insert(X[0], X0)
     
@@ -185,52 +196,68 @@ def usr(robot):
     # idx = 0
     initialized = False
     first = True
+    isam = gtsam.ISAM2()
 
     current_time = robot.get_clock()
     start_time = current_time
     tt=0.0
     k=0
 
+    
+    robot.set_vel(vel, vel)
     # while k < len(t):
     while tt < t[len(t) - 1]:
 ############################### DATA TRANSFER #########################################################
-        current_pos = robot.get_pose()
-
-        if not current_pos:
-            # print("GOT A FALSE FLAG FROM CURRENT POS")
-            continue
-        # else:
-        #     print(f"Drone {drone.id} current position: {current_pos}")
+        while True:
+            time.sleep(0.1)
+            current_pos = robot.get_pose()
+            print(current_pos)
+            if not current_pos:
+                # print("GOT A FALSE FLAG FROM CURRENT POS")
+                continue
+            break
 
         current_time = robot.get_clock()
         tt = current_time - start_time
-        if tt < t[k]:
-            continue
+
         # print(current_time)
         # Each drone will send data to all neighbors in the following format
+    
+        # Initialize variables to track received states and communication status
+        received_states = {neighbor.id: False for neighbor in drone.neighbors}
+
+        # Step 1: Drone with ID 0 sends its state first
         current_state_est = np.array([current_pos[0], current_pos[1], current_pos[2]])
         data_to_send = f"id:{drone.id};state_est:{current_state_est}"
-        for neighbor in drone.neighbors:    
-            robot.send_msg(f"data:{neighbor.id};{data_to_send}")
         
-        # Each drone receives data from all neighbors
+        # Send to all neighbors
+        for neighbor in drone.neighbors:
+            robot.send_msg(f"{data_to_send}")
+        
+        # Wait for responses from all other drones
         for _ in range(len(drone.neighbors)):
-            recv = robot.recv_msg(clear=True)
+            recv = robot.recv_msg(clear=False)
             if len(recv) > 0:
                 for msg in recv:
-                    sender_id = int(msg.split(";")[1].split(":")[1])
-                    for neighbor in drone.neighbors:
-                        if sender_id == neighbor.id:                
-                            state_est_str = msg.split(";")[2].split(":")[1]
-                            state_est = np.array([float(x) for x in state_est_str.strip("[]").split()])
-                            neighbor.set_est(state_est)
-                            break
-#######################################################################################################
+                    sender_id = int(msg.split(";")[0].split(":")[1])
+                    if sender_id in received_states:
+                        state_est_str = msg.split(";")[1].split(":")[1]
+                        state_est = np.array([float(x) for x in state_est_str.strip("[]").split()])
+                        for neighbor in drone.neighbors:
+                            if neighbor.id == sender_id:
+                                neighbor.set_est(state_est)
+                        received_states[sender_id] = True
+                        print(f"Drone {drone.id} received states: {received_states}")
+
+        if drone.id == 0:
+            robot.recv_msg(clear=True)
 
         # Update swarm states
         drone.vehicle.update_state(t[k])
         drone.update_measRange()
         
+        if tt < t[k]:
+            continue
 
         # if tt < t[len(t) - 1]:
             # Dynamics factor
@@ -257,11 +284,10 @@ def usr(robot):
                 state_est = neighbor.get_est().reshape(nx, 1)
                 X_val[(j + 1) * nx:(j + 2) * nx, :] = state_est
             
-            if not v.exists(X[k + 1]):
-                print(f"Adding prior factor for {X[k + 1]}")
+            if (not v.exists(X[k + 1])) and (not graph.exists(X[k + 1])):
                 v.insert(X[k + 1], X_val)
-            else:
-                print(f"prior factor for {X[k + 1]} already exists")
+            # else:
+            #     print(f"prior factor for {X[k + 1]} already exists")
 
         # Range measurement factor
         range_period = 1. / f_range
@@ -278,6 +304,9 @@ def usr(robot):
         if k > (1.0 / Delta_t) - 1 and count > (1.0 / Delta_t) - 1:
             if not initialized:
                 params = gtsam.LevenbergMarquardtParams()
+                print("params: ", params)
+                print("graph: ", graph)
+                print("v: ", v)
                 optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)
                 v = optimizer.optimize()
                 initialized = True
@@ -296,7 +325,8 @@ def usr(robot):
             # 2. Need to varify the wheel spacing
             vel_w1 = vel - drone.vehicle.omega * 0.1
             vel_w2 = vel + drone.vehicle.omega * 0.1
-            print(f"Drone {drone.id} Wheel Velocity: {vel_w1, vel_w2}")
+            if drone.id == 0:
+                print(f"Drone {drone.id} Wheel Velocity: {vel_w1, vel_w2}")
             robot.set_vel(vel_w1, vel_w2)
 
             if k < len(t) - 1:
@@ -307,6 +337,7 @@ def usr(robot):
             count += 1
 
         k += 1
+        current_pos = robot.get_pose()
         
         # robot.velocity = (30, drone.omega)
         # robot.integrate(Delta_t)
