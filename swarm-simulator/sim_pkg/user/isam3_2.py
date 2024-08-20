@@ -83,6 +83,8 @@ def usr(robot):
     S0 = 1e-4*np.eye(nx * (drone.nb_neighbors + 1))
     print(S0.shape)
     prior_noise = gtsam.noiseModel.Gaussian.Covariance(S0)
+    print("PriorNoise: ", prior_noise)
+    print()
     dynamics_noise = gtsam.noiseModel.Constrained.Sigmas(np.array([std_v*Delta_t, 0., std_omega*Delta_t] * (drone.nb_neighbors + 1)).reshape(nx * (drone.nb_neighbors + 1), 1)) # in the body frame of each agent
     cov = np.kron(np.eye(drone.nb_neighbors + 1), np.diag([std_v**2, std_omega**2]))
     input_noise = gtsam.noiseModel.Gaussian.Covariance(cov)
@@ -211,7 +213,6 @@ def usr(robot):
         while True:
             time.sleep(0.1)
             current_pos = robot.get_pose()
-            print(current_pos)
             if not current_pos:
                 # print("GOT A FALSE FLAG FROM CURRENT POS")
                 continue
@@ -247,7 +248,7 @@ def usr(robot):
                             if neighbor.id == sender_id:
                                 neighbor.set_est(state_est)
                         received_states[sender_id] = True
-                        print(f"Drone {drone.id} received states: {received_states}")
+                        # print(f"Drone {drone.id} received states: {received_states}")
 
         if drone.id == 0:
             robot.recv_msg(clear=True)
@@ -304,9 +305,11 @@ def usr(robot):
         if k > (1.0 / Delta_t) - 1 and count > (1.0 / Delta_t) - 1:
             if not initialized:
                 params = gtsam.LevenbergMarquardtParams()
-                print("params: ", params)
-                print("graph: ", graph)
-                print("v: ", v)
+                if drone.id == 0:
+                    print("params: ", params)
+                    print("graph size: ", graph.size())
+                    print("v: ", v)
+                    # print("Noise Model Size: ", prior_noise.size())
                 optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)
                 v = optimizer.optimize()
                 initialized = True
@@ -325,8 +328,8 @@ def usr(robot):
             # 2. Need to varify the wheel spacing
             vel_w1 = vel - drone.vehicle.omega * 0.1
             vel_w2 = vel + drone.vehicle.omega * 0.1
-            if drone.id == 0:
-                print(f"Drone {drone.id} Wheel Velocity: {vel_w1, vel_w2}")
+            # if drone.id == 0:
+                # print(f"Drone {drone.id} Wheel Velocity: {vel_w1, vel_w2}")
             robot.set_vel(vel_w1, vel_w2)
 
             if k < len(t) - 1:
