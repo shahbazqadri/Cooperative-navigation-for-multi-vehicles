@@ -67,7 +67,7 @@ class Drone():
 
     def add_neighbor(self, id):
         self.nb_neighbors += 1
-        neighbor = Neighbor(id)
+        neighbor = Neighbor(id, self.Delta_t, self.sim_t, self.v, self.std_omega, self.std_v, self.std_range, self.f_range, self.f_odom, self.S_Q)
         neighbor.std_range = self.std_range # Remove Possibly
         self.neighbors.append(neighbor)
          

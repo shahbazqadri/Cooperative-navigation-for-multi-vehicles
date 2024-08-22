@@ -130,20 +130,18 @@ class Vehicle(object):
         out_state[2,0]= angle_bound_rad(out_state[2])
         self.states = out_state 
 
+    def set_measurement(self, meas):
+        self.meas = meas
+
     # Update vehicle measurements
     def update_measurements(self, time):
         # updata sensor measurements: update the odom measurements
         odom_period = 1./self.f_odom
         if D(str(time) )% D(str(odom_period ))== 0.:
 
-            # TODO: Update meas_encoder with encoder measurements from the simulator
-            meas_encoder = np.array([[self.v + self.std_v*np.random.randn()],[self.omega + self.std_omega*np.random.randn()]])
-            # #
-
-            self.meas    = meas_encoder
+            meas_encoder = self.meas
             self.meas_history= np.hstack((self.meas_history,meas_encoder))
-            # print('meas_encoder:',meas_encoder)
-            # print('meas_history: ', self.meas_history)
+            
     # Update vehicle controller
     def update_controller(self):
         if self.use_estimation == True:
