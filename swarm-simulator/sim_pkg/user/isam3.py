@@ -20,7 +20,8 @@ from functools import partial
 import matplotlib.pyplot as plt
 from decimal import Decimal as D
 import random
-import time
+
+import time as time
 
 my_seed = 10
 random.seed(my_seed)
@@ -436,7 +437,7 @@ def usr(robot):
             # for j in range(nb_agents):
             #     if k == (tinc/Delta_t):
             #         estimated_states_history.append(estimated_states[j])
-            #
+            
             #     else:
             #         estimated_states_history[j] = np.hstack((estimated_states_history[j], estimated_states[j]))
             # k_old = k+1
@@ -484,51 +485,52 @@ def usr(robot):
     result = isam.calculateEstimate()
     cov = isam.marginalCovariance(X[k])            
     estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
+    
     # for j in range(nb_agents):
     #     if k == (tinc/Delta_t):
     #         estimated_states_history.append(estimated_states[j])
-    #
+    
     #     else:
     #         estimated_states_history[j] = np.hstack((estimated_states_history[j], estimated_states[j]))
-    # k_old = k
-    #print('Done.')
-    #print('Reshaping results for plotting........')
-    # x_res = []
-    # for j in range(nb_agents):
-    #     x_sol = np.zeros((len(t), nx))
-    #     for k in range(len(t)):
-    #         x_sol[k, :] = result.atVector(X[k])[j*nx:(j+1)*nx]
-    #
-    #     np.savetxt('x'+str(j)+'.csv', x_sol, delimiter=',')
-    #     x_res.append(x_sol)
+    k_old = k
+    print('Done.')
+    print('Reshaping results for plotting........')
+    x_res = []
+    for j in range(nb_agents):
+        x_sol = np.zeros((len(t), nx))
+        for k in range(len(t)):
+            x_sol[k, :] = result.atVector(X[k])[j*nx:(j+1)*nx]
     
-    #print('Done')
+        np.savetxt('x'+str(j)+'_'+str(id_var)+'.csv', x_sol, delimiter=',')
+        x_res.append(x_sol)
+    
+    print('Done')
     
     TRUTH.append(get_swarm_states_history)
     EST.append(estimated_states_history)
     ERR.append(EST_ERR)
     
-    # for j in range(nb_agents):
-    #     states = estimated_states_history[j]#x_res[j].transpose()
-    #     states_ = swarm.get_swarm_states_history[j]
-    #     time = t
-    #     plt.plot(states[0, :], states[1, :], label='estimated Vehicle ' + str(j))
-    #     plt.plot(states_[0, 1:], states_[1, 1:], label='true Vehicle ' + str(j))
-    #     plt.legend()
-    #     plt.title('Vehicle trajectories')
-    #     plt.xlabel('x (m)')
-    #     plt.ylabel('y (m)')
-    #     plt.show()
+    for j in range(nb_agents):
+        states = estimated_states_history[j]#x_res[j].transpose()
+        states_ = swarm.get_swarm_states_history[j]
+        time = t
+        plt.plot(states[0, :], states[1, :], label='estimated Vehicle ' + str(j))
+        plt.plot(states_[0, 1:], states_[1, 1:], label='true Vehicle ' + str(j))
+        plt.legend()
+        plt.title('Vehicle trajectories')
+        plt.xlabel('x (m)')
+        plt.ylabel('y (m)')
+        plt.show()
     
-    # time = t
-    # legends = ['x', 'y', '$\\theta$']
-    # for l in range(3):
-    #     for j in range(nb_agents):
-    #         states = estimated_states_history[j]#x_res[j].transpose()
-    #         states_ = get_swarm_states_history[j]
-    #         plt.plot(states[l, :] - states_[l, :], label='Vehicle '+str(j))
-    #     plt.legend()
-    #     plt.title(legends[l]+'-error trajectories' )
-    #     plt.xlabel('timesteps')
-    #     plt.ylabel(legends[l])
-    #     plt.show()
+    time = t
+    legends = ['x', 'y', '$\\theta$']
+    for l in range(3):
+        for j in range(nb_agents):
+            states = estimated_states_history[j]#x_res[j].transpose()
+            states_ = get_swarm_states_history[j]
+            plt.plot(states[l, :] - states_[l, :], label='Vehicle '+str(j))
+        plt.legend()
+        plt.title(legends[l]+'-error trajectories' )
+        plt.xlabel('timesteps')
+        plt.ylabel(legends[l])
+        plt.show()
