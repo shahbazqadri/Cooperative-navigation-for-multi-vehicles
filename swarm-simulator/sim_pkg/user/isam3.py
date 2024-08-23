@@ -4,17 +4,24 @@ Rutkowski, Adam J., Jamie E. Barnes, and Andrew T. Smith. "Path planning for opt
 
 Authors: Shahbaz P Qadri Syed, He Bai
 '''
+'''
+Questions:
+is there another function that needs to be called to calculate the velocity?
+'''
+
 
 import numpy as np
 import scipy as sc
-from agent import Agent
-from Swarm import Swarm
+from user.agent import Agent
+from user.Swarm import Swarm
 import gtsam
 from typing import Optional, List
 from functools import partial
 import matplotlib.pyplot as plt
 from decimal import Decimal as D
 import random
+import time
+
 my_seed = 10
 random.seed(my_seed)
 np.random.seed(my_seed)
@@ -25,22 +32,24 @@ TRUTH = []
 EST = []
 ERR = []
 
-for MC_RUN in range(MC_TOTAL):
-    print(MC_RUN)
+def usr(robot):
 
+# for MC_RUN in range(MC_TOTAL):
+    # print(MC_RUN)
+    id_var = robot.id
     #print('Initializing agents.........')
     agent = Agent()
     unicycle = agent.unicycle
     nx = 3
     nu = 2
     Delta_t   = 0.1
-    T = 150 #s
+    T = 30 #s
     # finding the number of decimal places of Delta_t
     precision = abs(D(str(Delta_t)).as_tuple().exponent)
     t         = np.arange(0,T,Delta_t)
     t = np.round(t, precision) # to round off python floating point precision errors
     tinc = 1.0#0.5 #sec
-    vel         = 30 #m/s
+    vel         = 0.2 #m/s
     #omega_max = 10 #degrees/s
     std_omega = 0*np.deg2rad(0.57) #degrees/s
     std_v     = 0*0.01 #* 10 #m/s
@@ -68,15 +77,15 @@ for MC_RUN in range(MC_TOTAL):
     # posf = np.array([[30., 40., 40., 30.],[30., 30., 40., 40.]])
 
     # TODO: Initial and final positions for simulator
-    pos0 = 10*np.array([[0.,10.,10.,0.,20.],[0.,0.,10.,10.,10.]])
-    posf = pos0 + np.ones((2,nb_agents)) * vel * 100 #100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
+    pos0 = np.array([[0.,1.,1.,0.,2.],[0.,0.,1.,1.,1.]])
+    posf = pos0 + np.ones((2,nb_agents)) * vel * 30 #100*np.array([[30., 40., 40., 30.,50.],[30., 30., 40., 40., 40.]])
     #  #
     #print('Done.')
     
     swarm =  Swarm()
     swarm.update_adjacency(adjacency)
     for i in range(nb_agents):
-        swarm.add_vehicle(Delta_t, t, vel, std_omega, std_v, std_range, f_range, f_odom, S_Q)
+        swarm.add_vehicle(id_var, Delta_t, t, vel, std_omega, std_v, std_range, f_range, f_odom, S_Q)
     swarm.set_swarm_initPos(pos0)
     swarm.set_swarm_endpos(posf)
     #print('Done.')
@@ -296,15 +305,76 @@ for MC_RUN in range(MC_TOTAL):
     isam = gtsam.ISAM2()
     initialized = False
     k = 0
-    for k in range(0, len(t)):
+    tt = t[k]
+    start_time = robot.get_clock()
+    current_time = start_time
+    
+
+    while k < len(t):
+        while True:
+            time.sleep(0.1)
+            current_pos = robot.get_pose()
+            if not current_pos:
+                # print("GOT A FALSE FLAG FROM CURRENT POS")
+                continue
+            break
+
+        # print(current_time)
+        # Each drone will send data to all neighbors in the following format
+    
+        # Initialize variables to track received states and communication status
+        # received_states = {vehicle.id: False for vehicle in swarm.vehicles}
+        # received_states[id_var] = True
+
+        # Step 1: Drone with ID 0 sends its state first
+        current_state_est = np.array([current_pos[0], current_pos[1], current_pos[2]])
+        data_to_send = f"id:{id_var};state_est:{current_state_est}"
+
+        swarm.vehicles[id_var].set_est(current_state_est)
+
+        # Send to all neighbors
+        robot.send_msg(f"{data_to_send}")
+        time.sleep(0.1)
+
+        # Wait for responses from all other drones
+        for _ in range(len(swarm.vehicles)):
+            recv = robot.recv_msg(clear=False)
+            if len(recv) > 0:
+                for msg in recv:
+                    sender_id = int(msg.split(";")[0].split(":")[1])
+                    state_est_str = msg.split(";")[1].split(":")[1]
+                    state_est = np.array([float(x) for x in state_est_str.strip("[]").split()])
+                    swarm.vehicles[sender_id].set_est(state_est)
+                    # print(f"Drone {sender_id} state {state_est}")
+
+                  
+        if id_var == 0:
+            robot.recv_msg(clear=True)
+            # for i in range(len(swarm.vehicles)):
+                # print(swarm.vehicles[i].states_est)
+
+        current_time = robot.get_clock()
+        tt = current_time - start_time
+
+        if tt < t[k]:
+            print("tt is < t[k]")
+            continue
+
+       
+        # print(f"Drone {id_var} state_est {swarm.vehicles[id_var].states_est}")
+
+
         # ALL the drones
         tt = t[k]#k * Delta_t
         swarm.update_measRange() #TODO: See function
         swarm.update_state(tt) #TODO: See function 
+        
         if k < len(t) - 1:
+            print("STOP POINT 1")
             # Dynamics factor
             odom_period = 1. / f_odom
             if D(str(t[k])) % D(str(odom_period)) == 0.:
+                print("DYNAMICS FACTOR")
                 idx = D(str(t[k])) // D(str(odom_period))
                 idx_bias = D(str(t[0])) // D(str(odom_period))
                 for i in range(nb_agents):
@@ -335,6 +405,7 @@ for MC_RUN in range(MC_TOTAL):
         # Range measurment factor
         range_period = 1./f_range
         if D(str(t[k])) % D(str(range_period)) == 0.:
+            print("RANGE MEASURE FACTOR")
             range_meas = np.zeros((nb_agents, 1))
             for j in range(nb_agents):
                 idx_set = np.nonzero(adjacency[j, :])[0]
@@ -346,6 +417,7 @@ for MC_RUN in range(MC_TOTAL):
     
         # incremental smoothing
         if k > (tinc/Delta_t)-1 and count > (tinc/Delta_t)-1:
+            print("INCREMENTAL SMOOTHING")
             if not initialized:
                 #Optimize the first batch
                 params = gtsam.LevenbergMarquardtParams()
@@ -359,7 +431,8 @@ for MC_RUN in range(MC_TOTAL):
             cov = isam.marginalCovariance(X[k])            
             estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
             s = np.random.randint(0,swarm.nb_agents)
-            swarm.MPC(optim_agent = None, use_cov = False, METRIC = 'obsv')
+            swarm.MPC(optim_agent = id_var, use_cov = False, METRIC = 'obsv')
+            print("MPC Called")
             # for j in range(nb_agents):
             #     if k == (tinc/Delta_t):
             #         estimated_states_history.append(estimated_states[j])
@@ -378,6 +451,17 @@ for MC_RUN in range(MC_TOTAL):
                 count = 0
         else:
             count += 1
+        
+        radius_of_wheel, dist_between_wheel = 0.015, 0.08
+        print(id_var, swarm.vehicles[id_var].omega)
+        v_L = ((2 * vel) - (swarm.vehicles[id_var].omega * dist_between_wheel)) / (2 * radius_of_wheel)
+        v_R = ((2 * vel) + (swarm.vehicles[id_var].omega * dist_between_wheel)) / (2 * radius_of_wheel)        
+
+        print(f"Robot {id_var} diff_vel ({v_L}, {v_R}) ")
+        
+        robot.set_vel(v_L, v_R)
+        
+        k += 1
         
         # print(tt)
         # for n in range(swarm.nb_agents):

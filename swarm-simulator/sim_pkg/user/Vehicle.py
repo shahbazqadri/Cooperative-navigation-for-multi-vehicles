@@ -8,7 +8,7 @@ Python implementation by Shahbaz P Qadri Syed, He Bai
 '''
 
 import numpy as np
-from agent import Agent
+from user.agent import Agent
 from decimal import Decimal as D
 
 def angle_bound_rad(in_angle : float) -> float:
@@ -25,8 +25,9 @@ class Vehicle(object):
     wp_idx = 0
     adjacency = None # adjacency matrix: initialized during runtime by swarm class
 
-    def __init__(self, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q):
+    def __init__(self, id, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q):
         # system param
+        self.id = id
         self.Delta_t = Delta_t #step size of discretization
         self.sim_t   = t # time intervals
         self.omega   = 0. # angular velocity
@@ -69,7 +70,10 @@ class Vehicle(object):
 
         # estimator param
         self.use_estimation = True
-        
+    
+    def set_est(self, est):
+        self.states_est = est
+
     def gen_w(self):
         # only changing the control in the first 3 steps
         M = self.M
@@ -180,8 +184,8 @@ class Vehicle(object):
             self.omega = omega_max
             self.omega_inlimit = False
                     
-            # w = self.MPC()
-            # self.omega = w
+            w = self.MPC()
+            self.omega = w
 
         self.ctrl_cmd = np.array([[self.omega],[self.v]])
         self.ctrl_cmd_history = np.hstack((self.ctrl_cmd_history, self.ctrl_cmd))
