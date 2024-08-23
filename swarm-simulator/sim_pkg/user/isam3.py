@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 from decimal import Decimal as D
 import random
 
-import time as time
 
 my_seed = 10
 random.seed(my_seed)
@@ -34,6 +33,7 @@ EST = []
 ERR = []
 
 def usr(robot):
+    import time as time
 
 # for MC_RUN in range(MC_TOTAL):
     # print(MC_RUN)
@@ -454,11 +454,11 @@ def usr(robot):
             count += 1
         
         radius_of_wheel, dist_between_wheel = 0.015, 0.08
-        print(id_var, swarm.vehicles[id_var].omega)
+        # print(id_var, swarm.vehicles[id_var].omega)
         v_L = ((2 * vel) - (swarm.vehicles[id_var].omega * dist_between_wheel)) / (2 * radius_of_wheel)
         v_R = ((2 * vel) + (swarm.vehicles[id_var].omega * dist_between_wheel)) / (2 * radius_of_wheel)        
 
-        print(f"Robot {id_var} diff_vel ({v_L}, {v_R}) ")
+        # print(f"Robot {id_var} diff_vel ({v_L}, {v_R}) ")
         
         robot.set_vel(v_L, v_R)
         
@@ -467,8 +467,8 @@ def usr(robot):
         # print(tt)
         # for n in range(swarm.nb_agents):
         #     print(swarm.vehicles[n].omega)
-    
-    
+    print("FINISHED THE LOOP!")
+    k -= 1
     swarm.get_swarm_states_history_()
     #swarm.plot_swarm_traj()
     get_swarm_states_history = swarm.get_swarm_states_history

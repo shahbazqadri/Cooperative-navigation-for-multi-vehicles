@@ -106,7 +106,7 @@ class Swarm():
             Jd = np.vstack((Jd, jdc))
         F = Jh @ Jd
         M = F.T @ np.linalg.inv(Qh) @ F 
-        print(M[0][0])
+        # print(M[0][0])
         # time.sleep(0.05)       
         return 1/np.linalg.det(M)   # FIXME:    Occationally returns np.linalg.det(M) as 0
                                     #           resulting in divide by 0 error.
@@ -232,7 +232,7 @@ class Swarm():
                 w = self.w_set[m_min,0]
                 # set the control
                 self.vehicles[int(optim_agent)].omega = w
-        print(self.vehicles[int(optim_agent)].omega)
+        # print(self.vehicles[int(optim_agent)].omega)
     
     def compute_SAM_metric1(self, states, all_inputs):
         for i in range(self.MPC_horizon):
