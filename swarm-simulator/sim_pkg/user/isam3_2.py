@@ -254,6 +254,19 @@ def usr(robot):
             robot.recv_msg(clear=True)
 
         # Update swarm states
+        for i in range(drone.nb_neighbors + 1):
+            if i == drone.id:
+                drone.vehicle.set_measurement(current_pos)
+                drone.vehicle.update_state(t[k])
+                drone.vehicle.update_measRange()
+            elif i < drone.id:
+                drone.neighbors[i].set_measurement(current_pos)
+                drone.neighbors[i].update_state(t[k])
+                drone.neighbors[i].update_measRange()
+            else:
+                drone.neighbors[i - 1].set_measurement(current_pos)
+                drone.neighbors[i - 1].update_state(t[k])
+                drone.neighbors[i - 1].update_measRange()
         drone.vehicle.update_state(t[k])
         drone.update_measRange()
         
@@ -265,15 +278,33 @@ def usr(robot):
         odom_period = 1. / f_odom
         if D(str(t[k])) % D(str(odom_period)) == 0.:
             for j in range(drone.nb_neighbors + 1):
-                # drone.vehicle.meas_history = np.delete(drone.vehicle.meas_history, 0, 1)            
-                if first:
-                    drone.vehicle.meas_history = np.delete(drone.vehicle.meas_history, 0, 1)
-                    first = False
-                if j == 0:
-                    meas_history = drone.vehicle.meas_history[:,-1:]
+                if j == drone.id:
+                    drone.vehicle.meas_history = np.delete(drone.vehicle.meas_history, 0, 1)            
+                    if first:
+                        drone.vehicle.measRange_history = np.delete(drone.vehicle.measRange_history, 0, 1)
+                        first = False
+                    if j == 0:
+                        meas_history = drone.vehicle.meas_history[:,-1:]
+                    else:
+                        meas_history = np.vstack((meas_history, drone.neighbors[j].meas_history[:, -1:]))
+                elif j < drone.id:
+                    drone.neighbors[j].meas_history = np.delete(drone.neighbors[j].meas_history, 0, 1)
+                    if first:
+                        drone.neighbors[j].measRange_history = np.delete(drone.neighbors[j].measRange_history, 0, 1)
+                    if j == 0:
+                        meas_history = drone.neighbors[j].meas_history[:, -1:]
+                    else:
+                        meas_history = np.vstack((meas_history, drone.neighbors[j - 1].meas_history[:, -1:]))
                 else:
-                    meas_history = np.vstack((meas_history, drone.neighbors[j - 1].meas_history[:, -1:]))
-       
+                    drone.neighbors[j - 1].meas_history = np.delete(drone.neighbors[j - 1].meas_history, 0, 1)
+                    if first:
+                        drone.neighbors[j - 1].measRange_history = np.delete(drone.neighbors[j - 1].measRange_history, 0, 1)
+                    if j == 0:
+                        meas_history = drone.neighbors[j - 1].meas_history[:, -1:]
+                    else:
+                        meas_history = np.vstack((meas_history, drone.neighbors[j - 1].meas_history[:, -1:]))
+            if first:
+                first = False
             # if not graph.exists(X[k]):
             gf = gtsam.CustomFactor(process_noise, [X[k], X[(k + 1)]], partial(error_dyn, meas_history))
             graph.add(gf)
@@ -306,9 +337,9 @@ def usr(robot):
             if not initialized:
                 params = gtsam.LevenbergMarquardtParams()
                 if drone.id == 0:
-                    print("params: ", params)
-                    print("graph size: ", graph.size())
-                    print("v: ", v)
+                    # print("params: ", params)
+                    print("graph size: ", graph)
+                    # print("v: ", v)
                     # print("Noise Model Size: ", prior_noise.size())
                 optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)
                 v = optimizer.optimize()

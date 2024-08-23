@@ -1,4 +1,4 @@
 __pycache__/
-*.csv
+*log*.csv
 **/.DS_Store
 .venv
