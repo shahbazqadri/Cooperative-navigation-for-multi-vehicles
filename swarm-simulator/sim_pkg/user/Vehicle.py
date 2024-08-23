@@ -8,9 +8,8 @@ Python implementation by Shahbaz P Qadri Syed, He Bai
 '''
 
 import numpy as np
-from decimal import Decimal as D
 from user.agent import Agent
-# from agent import Agent
+from decimal import Decimal as D
 
 def angle_bound_rad(in_angle : float) -> float:
     # Simple check to put the value between -pi and pi
@@ -26,8 +25,9 @@ class Vehicle(object):
     wp_idx = 0
     adjacency = None # adjacency matrix: initialized during runtime by swarm class
 
-    def __init__(self, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q):
+    def __init__(self, id, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q):
         # system param
+        self.id = id
         self.Delta_t = Delta_t #step size of discretization
         self.sim_t   = t # time intervals
         self.omega   = 0. # angular velocity
@@ -70,7 +70,10 @@ class Vehicle(object):
 
         # estimator param
         self.use_estimation = True
-        
+    
+    def set_est(self, est):
+        self.states_est = est
+
     def gen_w(self):
         # only changing the control in the first 3 steps
         M = self.M
@@ -130,18 +133,19 @@ class Vehicle(object):
         out_state[2,0]= angle_bound_rad(out_state[2])
         self.states = out_state 
 
-    def set_measurement(self, meas):
-        self.meas = meas
-
     # Update vehicle measurements
     def update_measurements(self, time):
         # updata sensor measurements: update the odom measurements
         odom_period = 1./self.f_odom
         if D(str(time) )% D(str(odom_period ))== 0.:
 
-            meas_encoder = self.meas
+            # TODO: Update meas_encoder with encoder measurements from the simulator
+            meas_encoder = np.array([[self.v + self.std_v*np.random.randn()],[self.omega + self.std_omega*np.random.randn()]])
+            # #
+
+            self.meas    = meas_encoder
             self.meas_history= np.hstack((self.meas_history,meas_encoder))
-            
+
     # Update vehicle controller
     def update_controller(self):
         if self.use_estimation == True:
@@ -187,41 +191,41 @@ class Vehicle(object):
         self.ctrl_cmd_history = np.hstack((self.ctrl_cmd_history, self.ctrl_cmd))
 
 
-    # def MPC(self):
-    #     w = 0
-    #     agent = Agent()
-    #     U = agent.unicycle
-    #     states = np.zeros((self.nx, self.MPC_horizon))
-    #     states[0:2,0:1] = self.vehicle_pos
-    #     states[2,0:1] = self.vehicle_theta
-    #     metrics = np.zeros((self.M**3, 1))
-    #     for i in range(self.M**3):
-    #         for j in range(self.MPC_horizon):
-    #             inputs = np.array([[self.w_set[i,j]],[self.v]])
-    #             #propagate the state
-    #             states[:,j+1:j+2] = U.discrete_step(states[:,j:j+1],inputs,self.pred_intv)
-    #         metrics[i,0]=self.compute_metric(states)
-    #     m_max = np.argmin(metrics)
-    #     w = self.w_set[m_max,0]
-    #     return w
+    def MPC(self):
+        w = 0
+        agent = Agent()
+        U = agent.unicycle
+        states = np.zeros((self.nx, self.MPC_horizon))
+        states[0:2,0:1] = self.vehicle_pos
+        states[2,0:1] = self.vehicle_theta
+        metrics = np.zeros((self.M**3, 1))
+        for i in range(self.M**3):
+            for j in range(self.MPC_horizon):
+                inputs = np.array([[self.w_set[i,j]],[self.v]])
+                #propagate the state
+                states[:,j+1:j+2] = U.discrete_step(states[:,j:j+1],inputs,self.pred_intv)
+            metrics[i,0]=self.compute_metric(states)
+        m_max = np.argmin(metrics)
+        w = self.w_set[m_max,0]
+        return w
     
     def compute_metric(self, states):
         dis_2_target = np.linalg.norm(states[0:2,-1:] - self.target_point)
         return dis_2_target
 
 
-    # def update_waypoints_ctrl(self, time):
-    #     if self.use_estimation is True:
-    #         vehicle_pos = self.states_est[:2,:]
-    #         vehicle_theta = self.states_est[2:,:]
-    #     else:
-    #         vehicle_pos = self.states[:2,:]
-    #         vehicle_theta = self.states[2:,:]
+    def update_waypoints_ctrl(self, time):
+        if self.use_estimation is True:
+            vehicle_pos = self.states_est[:2,:]
+            vehicle_theta = self.states_est[2:,:]
+        else:
+            vehicle_pos = self.states[:2,:]
+            vehicle_theta = self.states[2:,:]
 
-    #     if np.linalg.norm(self.waypoints[:,Vehicle.wp_idx]- vehicle_pos) < 100:
-    #         Vehicle.wp_idx = Vehicle.wp_idx+1
+        if np.linalg.norm(self.waypoints[:,Vehicle.wp_idx]- vehicle_pos) < 100:
+            Vehicle.wp_idx = Vehicle.wp_idx+1
 
-    #     self.target_point = self.waypoints[:,Vehicle.wp_idx]
-    #     self.update_controller(time)
+        self.target_point = self.waypoints[:,Vehicle.wp_idx]
+        self.update_controller(time)
 
 

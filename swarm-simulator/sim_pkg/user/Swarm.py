@@ -13,16 +13,16 @@ from user.agent import Agent
 import scipy as sc
 from scipy.optimize import minimize
 from itertools import repeat
+import time
 
-from joblib import Parallel, delayed
-import multiprocessing
+# from joblib import Parallel, delayed
+# import multiprocessing
 
-num_cores = multiprocessing.cpu_count()
+# num_cores = multiprocessing.cpu_count()
 
 # Swarm class
 class Swarm():
-    def __init__(self, id):
-        self.id = id
+    def __init__(self):
         self.vehicles = []
         self.nb_agents = 0
         self.timestamp = []
@@ -36,9 +36,9 @@ class Swarm():
         self.neighbor_ids = []
 
     # Create vehicle object
-    def add_vehicle(self, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q = np.diag([0.1, 0.1, 0.02])):
+    def add_vehicle(self, id, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q = np.diag([0.1, 0.1, 0.02])):
         self.nb_agents += 1
-        vehicle = Vehicle(Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q)
+        vehicle = Vehicle(id, Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q)
         self.omega_max = vehicle.omega_max
         self.nx = vehicle.nx
         self.std_omega = vehicle.std_omega # std deviation of ang vel measurement
@@ -105,8 +105,11 @@ class Swarm():
             jdc = Jdn @ jdc
             Jd = np.vstack((Jd, jdc))
         F = Jh @ Jd
-        M = F.T @ np.linalg.inv(Qh) @ F        
-        return 1/np.linalg.det(M)
+        M = F.T @ np.linalg.inv(Qh) @ F 
+        print(M[0][0])
+        # time.sleep(0.05)       
+        return 1/np.linalg.det(M)   # FIXME:    Occationally returns np.linalg.det(M) as 0
+                                    #           resulting in divide by 0 error.
     
     def try_parallel(self, i,optim_agent,states,METRIC,U):
         all_inputs = np.zeros((self.vehicles[0].nu, self.MPC_horizon, self.nb_agents))
@@ -147,8 +150,9 @@ class Swarm():
                     states[2,0:1,n] = self.vehicles[n].states_est[2,:]
                 N_total = self.w_set.shape[0] #M**3
                 metrics = np.zeros((N_total, 1))
-                metrics = Parallel(n_jobs=num_cores)(delayed(self.try_parallel)(i, optim_agent, states, METRIC,U)for i in range(N_total))
-                
+                # metrics = Parallel(n_jobs=num_cores)(delayed(self.try_parallel)(i, optim_agent, states, METRIC,U)for i in range(N_total))
+                metrics = [self.try_parallel(i, optim_agent, states, METRIC, U) for i in range(N_total)]
+
                 # for i in range(N_total):
                 #     for j in range(self.MPC_horizon):
                 #         for n in range(self.nb_agents):
@@ -228,6 +232,7 @@ class Swarm():
                 w = self.w_set[m_min,0]
                 # set the control
                 self.vehicles[int(optim_agent)].omega = w
+        print(self.vehicles[int(optim_agent)].omega)
     
     def compute_SAM_metric1(self, states, all_inputs):
         for i in range(self.MPC_horizon):
