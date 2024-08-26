@@ -8,6 +8,7 @@ Python implementation by Shahbaz P Qadri Syed, He Bai
 '''
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.linalg
 from Vehicle import Vehicle
 from agent import Agent
 import scipy as sc
@@ -38,7 +39,10 @@ class Swarm():
         self.nb_agents += 1
         vehicle = Vehicle(Delta_t, t, v, std_omega, std_v, std_range, f_range, f_odom, S_Q)
         self.omega_max = vehicle.omega_max
+        self.Delta_t = Delta_t
+        self.S_Q = S_Q
         self.nx = vehicle.nx
+        self.nu = vehicle.nu
         self.std_omega = vehicle.std_omega # std deviation of ang vel measurement
         self.std_range = vehicle.std_range # std deviation of range measurement
         self.std_v     = vehicle.std_v # std deviation of linear vel measurement
@@ -118,14 +122,25 @@ class Swarm():
             #propagate the state
                 states[:,j+1:j+2,n] = U.discrete_step(states[:,j:j+1,n],inputs,self.pred_intv)
         if METRIC == 'SAM':
-            metrics=self.compute_SAM_metric1(states,all_inputs)
+            # print("Using SAM")
+            metrics=self.compute_SAM_metric1(states,all_inputs,METRIC)
+        elif METRIC == 'min_eig_SAM':
+            # print("Using SAM")
+            metrics=self.compute_SAM_metric1(states,all_inputs,METRIC)
         elif METRIC == 'obsv':
+            # print("Using obsv")
             metrics=self.compute_obsv_metric(states, self.w_set[i,:], optim_agent)
+        elif METRIC == 'min_eig_inv_cov':
+            # print("Using inv_cov")
+            metrics = self.compute_inv_cov_metric(states, all_inputs, U, METRIC)
+        elif METRIC == 'det_inv_cov':
+            # print("Using inv_cov")
+            metrics = self.compute_inv_cov_metric(states, all_inputs, U, METRIC)
         else:
             print('metric not implemented')
         return metrics
     
-    # cooeprative MPC
+    # cooperative MPC
     def MPC(self, optim_agent, use_cov = False, METRIC = 'obsv'):
         if use_cov == False:
             if optim_agent == None:
@@ -163,8 +178,12 @@ class Swarm():
                 #     else:
                 #         print('metric not implemented')
                 #         pass
-                m_min = np.argmin(metrics)
-                w = self.w_set[m_min,0]
+                if METRIC == "min_eig_inv_cov" or METRIC == "min_eig_SAM":
+                    m_max = np.argmax(metrics)
+                    w = self.w_set[m_max, 0]
+                else:
+                    m_min = np.argmin(metrics)
+                    w = self.w_set[m_min,0]
                 
                 #numerical optimization
                 # w_set = np.zeros((self.MPC_horizon))
@@ -183,6 +202,8 @@ class Swarm():
                 # set the control
                 self.vehicles[int(optim_agent)].omega = w
         else:
+            agent = Agent()
+            U = agent.unicycle
             # use covariance information
             active_planning = False
             for n in range(self.nb_agents):
@@ -207,6 +228,7 @@ class Swarm():
                 agent = Agent()
                 U = agent.unicycle
                 states = np.zeros((self.vehicles[0].nx, self.MPC_horizon, self.nb_agents))
+                controls = np.zeros((self.vehicles[0].nu, self.MPC_horizon, self.nb_agents))
                 for n in range(self.nb_agents):
                     states[0:2,0:1,n] = self.vehicles[n].states_est[0:2,:]
                     states[2,0:1,n] = self.vehicles[n].states_est[2,:]
@@ -219,15 +241,19 @@ class Swarm():
                                 inputs = np.array([[self.vehicles[n].v], [self.w_set[i,j]]])
                             else:
                                 inputs = np.array([[self.vehicles[n].v], [self.vehicles[n].omega]])
+
+                            if METRIC == 'min_eig_inv_cov':
+                                controls[:,j:j+1,n] = inputs
                         #propagate the state
                             states[:,j+1:j+2,n] = U.discrete_step(states[:,j:j+1,n],inputs,self.pred_intv)
-                    metrics[i,0]=self.compute_SAM_metric(states)
+                    # metrics[i,0]= self.compute_SAM_metric(states)
+                    metrics[i,0]= self.compute_inv_cov_metric(states, controls, U)
                 m_min = np.argmin(metrics)
                 w = self.w_set[m_min,0]
                 # set the control
                 self.vehicles[int(optim_agent)].omega = w
     
-    def compute_SAM_metric1(self, states, all_inputs):
+    def compute_SAM_metric1(self, states, all_inputs,METRIC):
         for i in range(self.MPC_horizon):
             state = states[:,i,:].squeeze()
             if i == 0:
@@ -250,8 +276,11 @@ class Swarm():
         Qd = np.kron(np.eye(self.nb_agents * (self.MPC_horizon - 1)), self.vehicles[0].S_Q.T @ self.vehicles[0].S_Q)        
         J = np.vstack((Jh, Jd))
         Q = sc.linalg.block_diag(Qh, Qd)
-        M = J.T @ np.linalg.inv(Q) @ J        
-        return 1/np.linalg.det(M)
+        M = J.T @ np.linalg.inv(Q) @ J
+        if METRIC == 'min_eig_SAM':
+            return np.min(np.linalg.eigvals(M)).item()
+        if METRIC == 'SAM':
+            return 1/np.linalg.det(M)
     
     def compute_dynamics_jac1(self, statej, inputs, j):
         n_col = self.nx * self.MPC_horizon * self.nb_agents
@@ -263,12 +292,26 @@ class Swarm():
             Jd[jac_size * n: jac_size * n + jac_size, (j+1) * self.nx * self.nb_agents + self.nx * n : (j + 1) * self.nx * self.nb_agents + self.nx * n + self.nx] = np.eye(self.nx)
         return Jd
             
-        
+    def compute_dynamics_u_jac1(self, statej, inputs, j):
+        n_col = self.nu * self.MPC_horizon * self.nb_agents
+        jac_size = 3
+        Jd = np.zeros((self.nb_agents * jac_size, n_col))
+        for n in range(self.nb_agents):
+            j0 = self.compute_individual_u_jac1(statej[:,n:n+1], inputs[:,n:n+1], self.pred_intv)
+            Jd[jac_size * n: jac_size * n + jac_size, j * self.nu * self.nb_agents + self.nu * n : j * self.nu * self.nb_agents + self.nu * n + self.nu] = - j0
+            # Jd[jac_size * n: jac_size * n + jac_size, (j+1) * self.nu * self.nb_agents + self.nu * n : (j + 1) * self.nu * self.nb_agents + self.nu * n + self.nu] = np.eye(self.nx)
+        return Jd
         
     def compute_individual_jac1(self, statej, inputs, Delta_t):
         agent = Agent()
         unicycle = agent.unicycle
         J0 = unicycle.dyn_jacobian(statej, inputs, Delta_t)
+        return J0
+
+    def compute_individual_u_jac1(self, statej, inputs, Delta_t):
+        agent = Agent()
+        unicycle = agent.unicycle
+        J0 = unicycle.u_jacobian(statej, inputs, Delta_t)
         return J0
     
     def compute_SAM_metric(self, states):
@@ -295,6 +338,51 @@ class Swarm():
         Q = sc.linalg.block_diag(Qh, Qd)
         M = J.T @ np.linalg.inv(Q) @ J        
         return 1/np.linalg.det(M)
+
+    def compute_inv_cov_metric(self,states,inputs,U, METRIC):
+        # print('Using inverse covariance metric')
+        # Uses the minimum eigenvalue of the inverse covariance matrix as discussed in Cognetti et. al, Optimal active sensing with process and measurement noise, ICRA, 2018.
+        for i in range(self.MPC_horizon):
+            state = states[:, i, :].squeeze()
+            input = inputs[:, i, :].squeeze()
+            H = self.compute_range_jac(state)
+            for n in range(self.nb_agents):
+                if n==0:
+                    if i == 0:
+                        P_predict= self.vehicles[n].states_cov
+                        S_Q_block = self.S_Q
+                    A =  U.dyn_jacobian(states[:,i:i+1,n], inputs[:,i:i+1,n], self.Delta_t)#self.compute_dynamics_jac1(state, input, i)#
+                    B = U.u_jacobian(states[:, i:i + 1, n], inputs[:, i:i + 1, n], self.Delta_t)#self.compute_dynamics_u_jac1(state, input, i)#
+                else:
+                    if i == 0:
+                        P_predict = sc.linalg.block_diag(P_predict, self.vehicles[n].states_cov)
+                        S_Q_block = sc.linalg.block_diag(S_Q_block, self.S_Q)
+                    A = sc.linalg.block_diag(A, U.dyn_jacobian(states[:,i:i+1,n], inputs[:,i:i+1,n], self.Delta_t))#self.compute_dynamics_jac1(state, input, i))#
+                    B = sc.linalg.block_diag(B, U.u_jacobian(states[:,i:i+1,n], inputs[:,i:i+1,n],self.Delta_t))#self.compute_dynamics_u_jac1(state, input, i))#
+
+            if i > 0:
+            #     P_inv = np.linalg.inv(P0)
+
+            # else:
+                # A_update = -P_inv @ A - A.T @ P_inv
+                # H_update = H.T @ np.linalg.inv(np.kron(np.eye(H.shape[0]),self.std_range)) @ H
+                # B_update = -P_inv @ B @ np.linalg.inv(np.kron(np.eye(self.nb_agents), np.diag([self.std_v**2, self.std_omega**2])) )  @ B.T @ P_inv
+                # P_inv = P_inv + self.Delta_t*(A_update + H_update + B_update)
+                # for i in range(1, T):
+                # Prediction
+                # x_predict[:, i:i + 1] = phi @ x_filtered[:, i - 1:i] + psi @ u[:, i - 1:i]
+                P_predict = A @ P_predict @ A.transpose() +  S_Q_block
+
+                # Update
+                K = P_predict @ H.transpose() @ np.linalg.inv(H @ P_predict @ H.transpose() + np.kron(np.eye(H.shape[0]),self.std_range))
+                P = (np.eye(self.nx*self.nb_agents) - K @ H) @ P_predict
+                # print(P)
+        if METRIC == 'min_eig_inv_cov':
+            return np.min(np.linalg.eigvals(np.linalg.inv(P))).item()
+        if METRIC == 'det_inv_cov':
+            return 1/np.linalg.det(np.linalg.inv(P))
+
+
     
     def compute_dynamics_jac(self, statej, statej1, j):
         n_col = self.nx * self.MPC_horizon * self.nb_agents

@@ -58,7 +58,8 @@ for MC_RUN in range(MC_TOTAL):
 
     #TODO: number of agents in the simulation and the adjacency graph of range measurement
     nb_agents = 5
-    adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])
+    # adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])
+    adjacency = (np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
     # #
     #adjacency = np.array([[0,1,1,0,0],[0,0,1,0,0],[0,0,0,1,0],[1,0,0,0,1],[1,0,0,0,0]])#
 
@@ -359,7 +360,7 @@ for MC_RUN in range(MC_TOTAL):
             cov = isam.marginalCovariance(X[k])            
             estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
             s = np.random.randint(0,swarm.nb_agents)
-            swarm.MPC(optim_agent = None, use_cov = False, METRIC = 'obsv')
+            swarm.MPC(optim_agent = s, use_cov = False, METRIC = 'min_eig_SAM')
             # for j in range(nb_agents):
             #     if k == (tinc/Delta_t):
             #         estimated_states_history.append(estimated_states[j])
@@ -423,6 +424,9 @@ for MC_RUN in range(MC_TOTAL):
     TRUTH.append(get_swarm_states_history)
     EST.append(estimated_states_history)
     ERR.append(EST_ERR)
+
+data_dict = {"TRUTH": TRUTH, "EST": EST, "ERR": ERR }
+sc.io.savemat("control_ERR_full_150_1_test_NewNoise_min_eig_SAM.mat", data_dict)
     
     # for j in range(nb_agents):
     #     states = estimated_states_history[j]#x_res[j].transpose()
@@ -435,7 +439,7 @@ for MC_RUN in range(MC_TOTAL):
     #     plt.xlabel('x (m)')
     #     plt.ylabel('y (m)')
     #     plt.show()
-    
+    #
     # time = t
     # legends = ['x', 'y', '$\\theta$']
     # for l in range(3):
