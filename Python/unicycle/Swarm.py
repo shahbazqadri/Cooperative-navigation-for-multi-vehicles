@@ -374,7 +374,7 @@ class Swarm():
                 P_predict = A @ P_predict @ A.transpose() +  S_Q_block
 
                 # Update
-                K = P_predict @ H.transpose() @ np.linalg.inv(H @ P_predict @ H.transpose() + np.kron(np.eye(H.shape[0]),self.std_range))
+                K = P_predict @ H.transpose() @ np.linalg.inv(H @ P_predict @ H.transpose() + np.kron(np.eye(H.shape[0]),self.std_range**2))
                 P = (np.eye(self.nx*self.nb_agents) - K @ H) @ P_predict
                 # print(P)
         if METRIC == 'min_eig_inv_cov':
