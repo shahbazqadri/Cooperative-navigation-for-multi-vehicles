@@ -12,7 +12,8 @@ set(0,'defaultAxesYGrid','on')
 %%
 % no control
 %load no_control_high_noise.mat
-load no_control_ERR_sparse_150_1_test_NewNoise.mat%high_noise.mat
+% load no_control_ERR_sparse_150_1_test_NewNoise.mat
+load no_control_ERR_sparse_150_1_test_HighNoise.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -63,7 +64,8 @@ end
 %% full control
 clear EST TRUTH ERR;
 %load control_high_noise.mat %_ERR_150.mat
-load control_ERR_sparse_150_1_test_NewNoise_obsv.mat
+% load control_ERR_sparse_150_1_test_NewNoise_obsv.mat
+load control_ERR_sparse_150_1_test_HighNoise_obsv.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -214,14 +216,15 @@ end
 %%
 clear EST TRUTH;
 %load control_high_noise_full.mat%ERR_full_150.mat
-load control_ERR_sparse_150_1_test_NewNoise_SAM.mat
+% load control_ERR_sparse_150_1_test_NewNoise_SAM.mat
+load control_ERR_sparse_150_1_test_HighNoise_SAM.mat
 N = 20;
 m = 5;
 T = length(EST);
 p_error_control_SAM = zeros(T,m);
 th_error_control_SAM = zeros(T,m);
 for t = 1:T
-    for i = 1:N
+    for i = 2:N
         for j = 1:m
             p_error_control_SAM(t,j) = p_error_control_SAM(t,j) + sum((EST(i,j,1:2,t) - TRUTH(i,j,1:2,t)).^2);%10X5X3X1500
             th_error_control_SAM(t,j) = th_error_control_SAM(t,j) + sum((EST(i,j,3,t) - TRUTH(i,j,3,t)).^2);%10X5X3X1500
@@ -230,7 +233,7 @@ for t = 1:T
 end
 figure;
 for i = 1:m
-    plot(reshape(TRUTH(1,i,1,:),[],1), reshape(TRUTH(1,i,2,:),[],1), [colorcode(i)],'MarkerSize',10)
+    plot(reshape(TRUTH(2,i,1,:),[],1), reshape(TRUTH(2,i,2,:),[],1), [colorcode(i)],'MarkerSize',10)
     Leg{i} = ['vehicle ' num2str(i)];
     hold on;
 end
@@ -307,7 +310,8 @@ end
 % end
 %%
 clear EST TRUTH;
-load control_ERR_sparse_150_1_test_NewNoise_inv_cov.mat
+% load control_ERR_sparse_150_1_test_NewNoise_inv_cov.mat
+load control_ERR_sparse_150_1_test_HighNoise_inv_cov.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -355,7 +359,8 @@ end
 
 %%
 clear EST TRUTH;
-load control_ERR_sparse_150_1_test_NewNoise_det_inv_cov.mat
+% load control_ERR_sparse_150_1_test_NewNoise_det_inv_cov.mat
+load control_ERR_sparse_150_1_test_HighNoise_det_inv_cov.mat
 N = 20;
 m = 5;
 T = length(EST);

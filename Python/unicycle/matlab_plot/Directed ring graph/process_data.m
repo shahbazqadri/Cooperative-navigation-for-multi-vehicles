@@ -12,7 +12,8 @@ set(0,'defaultAxesYGrid','on')
 %%
 % no control
 %load no_control_high_noise.mat
-load no_control_ERR_150_1_test_NewNoise.mat%high_noise.mat
+% load no_control_ERR_150_1_test_NewNoise.mat
+load no_control_ERR_150_1_test_HighNoise.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -63,7 +64,8 @@ end
 %% full control
 clear EST TRUTH ERR;
 %load control_high_noise.mat %_ERR_150.mat
-load control_ERR_150_1_test_NewNoise_obsv.mat
+% load control_ERR_150_1_test_NewNoise_obsv.mat
+load control_ERR_150_1_test_HighNoise_obsv.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -214,7 +216,8 @@ end
 %%
 clear EST TRUTH;
 %load control_high_noise_full.mat%ERR_full_150.mat
-load control_ERR_150_1_test_NewNoise_SAM.mat
+% load control_ERR_150_1_test_NewNoise_SAM.mat
+load control_ERR_150_1_test_HighNoise_SAM.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -307,7 +310,8 @@ end
 % end
 %%
 clear EST TRUTH;
-load control_ERR_150_1_test_NewNoise_inv_cov.mat
+% load control_ERR_150_1_test_NewNoise_inv_cov.mat
+load control_ERR_150_1_test_HighNoise_inv_cov.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -355,7 +359,8 @@ end
 
 %%
 clear EST TRUTH;
-load control_ERR_150_1_test_NewNoise_det_inv_cov.mat
+% load control_ERR_150_1_test_NewNoise_det_inv_cov.mat
+load control_ERR_150_1_test_HighNoise_det_inv_cov.mat
 N = 20;
 m = 5;
 T = length(EST);

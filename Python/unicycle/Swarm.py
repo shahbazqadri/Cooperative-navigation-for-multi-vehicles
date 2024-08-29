@@ -371,7 +371,7 @@ class Swarm():
                 # for i in range(1, T):
                 # Prediction
                 # x_predict[:, i:i + 1] = phi @ x_filtered[:, i - 1:i] + psi @ u[:, i - 1:i]
-                P_predict = A @ P_predict @ A.transpose() +  S_Q_block
+                P_predict = A @ P_predict @ A.transpose() +  S_Q_block.T @ S_Q_block
 
                 # Update
                 K = P_predict @ H.transpose() @ np.linalg.inv(H @ P_predict @ H.transpose() + np.kron(np.eye(H.shape[0]),self.std_range**2))

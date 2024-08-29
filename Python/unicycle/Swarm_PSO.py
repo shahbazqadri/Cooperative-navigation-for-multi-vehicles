@@ -65,7 +65,8 @@ class Swarm():
         #w_set = np.kron(np.ones((1,self.MPC_horizon)), w_range.reshape((M,1)))
         return w_set
     
-    def metric(self, w_set, states, optim_agent):
+    def metric(self, w_set, states, optim_agent, METRIC):
+        all_inputs = np.zeros((self.vehicles[0].nu, self.MPC_horizon, self.nb_agents))
         agent = Agent()
         U = agent.unicycle
         for j in range(self.MPC_horizon):
@@ -74,9 +75,28 @@ class Swarm():
                     inputs = np.array([[self.vehicles[n].v], [w_set[j]]])
                 else:
                     inputs = np.array([[self.vehicles[n].v], [self.vehicles[n].omega]])
+                all_inputs[:, j, n] = inputs.reshape((2,))
             #propagate the state
                 states[:,j+1:j+2,n] = U.discrete_step(states[:,j:j+1,n],inputs,self.pred_intv)
-        return self.compute_SAM_metric(states)
+        if METRIC == 'SAM':
+            # print("Using SAM")
+            metrics = self.compute_SAM_metric1(states, all_inputs, METRIC)
+        elif METRIC == 'min_eig_SAM':
+            # print("Using SAM")
+            metrics = self.compute_SAM_metric1(states, all_inputs, METRIC)
+        elif METRIC == 'obsv':
+            # print("Using obsv")
+            metrics = self.compute_obsv_metric(states, self.w_set[i, :], optim_agent)
+        elif METRIC == 'min_eig_inv_cov':
+            # print("Using inv_cov")
+            metrics = self.compute_inv_cov_metric(states, all_inputs, U, METRIC)
+        elif METRIC == 'det_inv_cov':
+            # print("Using inv_cov")
+            metrics = self.compute_inv_cov_metric(states, all_inputs, U, METRIC)
+        else:
+            print('metric not implemented')
+
+        return metrics
     
     def compute_obsv_metric(self, states, w_set, optim_agent):
         agent = Agent()
@@ -155,22 +175,23 @@ class Swarm():
                 agent = Agent()
                 U = agent.unicycle
                 states = np.zeros((self.vehicles[0].nx, self.MPC_horizon, self.nb_agents))
+                inputs = np.zeros((self.vehicles[0].nu, self.MPC_horizon, self.nb_agents))
                 for n in range(self.nb_agents):
                     states[0:2,0:1,n] = self.vehicles[n].states_est[0:2,:]
                     states[2,0:1,n] = self.vehicles[n].states_est[2,:]
-                N_total = self.w_set.shape[0] #M**3
-                metrics = np.zeros((N_total, 1))
-                metrics = Parallel(n_jobs=num_cores)(delayed(self.try_parallel)(i, optim_agent, states, METRIC,U)for i in range(N_total))
+                # N_total = self.w_set.shape[0] #M**3
+                # metrics = np.zeros((N_total, 1))
+                # metrics = Parallel(n_jobs=num_cores)(delayed(self.try_parallel)(i, optim_agent, states, METRIC,U)for i in range(N_total))
                 
                 # for i in range(N_total):
-                #     for j in range(self.MPC_horizon):
-                #         for n in range(self.nb_agents):
-                #             if n == int(optim_agent):
-                #                 inputs = np.array([[self.vehicles[n].v], [self.w_set[i,j]]])
-                #             else:
-                #                 inputs = np.array([[self.vehicles[n].v], [self.vehicles[n].omega]])
-                #         #propagate the state
-                #             states[:,j+1:j+2,n] = U.discrete_step(states[:,j:j+1,n],inputs,self.pred_intv)
+                # for j in range(self.MPC_horizon):
+                #     for n in range(self.nb_agents):
+                #         if n == int(optim_agent):
+                #             inputs[:,j:j+1,n] = np.array([[self.vehicles[n].v], [self.w_set[i,j]]])
+                #         else:
+                #             inputs[:,j:j+1,n] = np.array([[self.vehicles[n].v], [self.vehicles[n].omega]])
+                #     #propagate the state
+                #         states[:,j+1:j+2,n] = U.discrete_step(states[:,j:j+1,n],inputs[:,j:j+1,n],self.pred_intv)
                 #     if METRIC == 'SAM':
                 #         metrics[i,0]=self.compute_SAM_metric(states)
                 #     elif METRIC == 'obsv':
@@ -178,18 +199,18 @@ class Swarm():
                 #     else:
                 #         print('metric not implemented')
                 #         pass
-                if METRIC == "min_eig_inv_cov" or METRIC == "min_eig_SAM":
-                    m_max = np.argmax(metrics)
-                    w = self.w_set[m_max, 0]
-                else:
-                    m_min = np.argmin(metrics)
-                    w = self.w_set[m_min,0]
+                # if METRIC == "min_eig_inv_cov" or METRIC == "min_eig_SAM":
+                #     m_max = np.argmax(metrics)
+                #     w = self.w_set[m_max, 0]
+                # else:
+                #     m_min = np.argmin(metrics)
+                #     w = self.w_set[m_min,0]
                 
                 #numerical optimization
-                # w_set = np.zeros((self.MPC_horizon))
-                # bnds = tuple(repeat((-self.omega_max, self.omega_max), self.MPC_horizon))
-                # res = minimize(self.metric, w_set, args = (states, optim_agent), bounds = bnds)
-                # w = res.x[0]
+                w_set = np.random.rand((self.MPC_horizon))
+                bnds = tuple(repeat((-self.omega_max, self.omega_max), self.MPC_horizon))
+                res = minimize(self.metric, w_set, args = (states, optim_agent, METRIC), bounds = bnds, method='Powell')
+                w = res.x[0]
                 
                 # PSO Needs to write the vectorized metric function
                 # w_max = self.omega_max * np.ones(self.MPC_horizon)
@@ -371,7 +392,7 @@ class Swarm():
                 # for i in range(1, T):
                 # Prediction
                 # x_predict[:, i:i + 1] = phi @ x_filtered[:, i - 1:i] + psi @ u[:, i - 1:i]
-                P_predict = A @ P_predict @ A.transpose() +  S_Q_block
+                P_predict = A @ P_predict @ A.transpose() +  S_Q_block.T @ S_Q_block
 
                 # Update
                 K = P_predict @ H.transpose() @ np.linalg.inv(H @ P_predict @ H.transpose() + np.kron(np.eye(H.shape[0]),self.std_range**2))

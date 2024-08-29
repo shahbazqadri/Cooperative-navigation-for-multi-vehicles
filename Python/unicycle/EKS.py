@@ -16,6 +16,34 @@ TRUTH = []
 EST = []
 ERR = []
 
+
+def compute_range_jac(state):
+    adjacency = swarm.vehicles[0].adjacency
+    nx = nx
+    nb_agents = self.nb_agents
+    for j in range(nb_agents):
+        ego_idx = j
+        vehicle_pos = state[0:2, j:j + 1]
+        neighbor_idx_set = np.nonzero(adjacency[j, :])[0]
+        for n in range(neighbor_idx_set.shape[0]):
+            jac = np.zeros((1, nx * nb_agents))
+            neighbor_idx = neighbor_idx_set[n]
+            neighbor_pos = state[nx * neighbor_idx:nx * neighbor_idx + 2].reshape(2, 1)
+            range_ = np.linalg.norm(vehicle_pos - neighbor_pos)
+            jac[:, ego_idx * nx:((ego_idx + 1) * nx) - 1] = -(neighbor_pos - vehicle_pos).transpose()
+            jac[:, neighbor_idx * nx:((neighbor_idx + 1) * nx) - 1] = -(-neighbor_pos + vehicle_pos).transpose()
+
+            if j == 0 and n == 0:
+                if range_ != 0:
+                    jacobians = (1. / range_) * jac
+                else:
+                    jacobians = np.zeros((1, nx * nb_agents))
+            else:
+                if range_ != 0:
+                    jacobians = np.vstack((jacobians, (1. / range_) * jac))
+                else:
+                    jacobians = np.vstack((jacobians, np.zeros((1, nx * nb_agents))))
+    return jacobians
 for MC_RUN in range(MC_TOTAL):
     print(MC_RUN)
 
@@ -79,20 +107,20 @@ for MC_RUN in range(MC_TOTAL):
     theta0 = [0, 0, 0, 0, 0]
     for j in range(nb_agents):
         X0[:, j:j + 1] = np.vstack((pos0[:, j:j + 1], np.array([[theta0[j]]])))
-
+    X0 = X0.T.flatten().reshape(nx * nb_agents, 1)
     nX = X0.shape[0]
     x_predict = np.zeros((nX, len(t)))
     x_predict[:, 0:1] = X0
     P_predict = np.zeros((nX, nX * len(t)))
-    P_predict[:, 0:nx] = prior_noise
+    P_predict[:, 0:nX] = prior_noise
     x_filtered = np.zeros((nX, len(t)))
     x_filtered[:, 0:1] = X0
     P_filtered = np.zeros((nX, nX * len(t)))
     P_filtered[:, 0:nX] = prior_noise
     k = 0
-    for i in range(0, len(t)):
+    for i in range(1, len(t)):
         for j in range(nb_agents):
-            swarm.vehicles[j].states_est = x_filtered[j:j+1, i - 1:i].reshape((3, 1))
+            swarm.vehicles[j].states_est = x_filtered[j*nx:(j+1)*nx, i - 1:i].reshape((3, 1))
             swarm.vehicles[j].states_cov = P_filtered[:,(i-1) * nX:(i) * nX][j * nx:(j + 1) * nx, j * nx:(j + 1) * nx]
             swarm.vehicles[j].est_err = np.hstack(
                 (swarm.vehicles[j].est_err, swarm.vehicles[j].states_est - swarm.vehicles[j].states))
@@ -100,7 +128,7 @@ for MC_RUN in range(MC_TOTAL):
         swarm.MPC(optim_agent=None, use_cov=False, METRIC='obsv')
         u = np.zeros((nu*nb_agents,1))
         for j in range(nb_agents):
-            u[j*nb_agents:(j+1)*nb_agents] = np.array([[swarm.vehicles[j].omega],[swarm.vehicles[j].v]])
+            u[j*nu:(j+1)*nu] = np.array([[swarm.vehicles[j].omega],[swarm.vehicles[j].v]])
         H = swarm.compute_range_jac(x_filtered[:, i - 1:i])
         for n in range(nb_agents):
             if n == 0:

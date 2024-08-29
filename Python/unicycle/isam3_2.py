@@ -8,7 +8,7 @@ Authors: Shahbaz P Qadri Syed, He Bai
 import numpy as np
 import scipy as sc
 from agent import Agent
-from Swarm import Swarm
+from Swarm_PSO import Swarm
 import gtsam
 from typing import Optional, List
 from functools import partial
@@ -58,8 +58,8 @@ for MC_RUN in range(MC_TOTAL):
 
     #TODO: number of agents in the simulation and the adjacency graph of range measurement
     nb_agents = 5
-    # adjacency = np.array([[0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [0, 0, 0, 1, 1], [0, 0, 1, 0, 1], [0, 0, 1, 1, 0]])
-    adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])
+    adjacency = np.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [0, 0, 1, 0, 0]])
+    # adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])
     # adjacency = (np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
     # #
     #adjacency = np.array([[0,1,1,0,0],[0,0,1,0,0],[0,0,0,1,0],[1,0,0,0,1],[1,0,0,0,0]])#
@@ -361,7 +361,7 @@ for MC_RUN in range(MC_TOTAL):
             cov = isam.marginalCovariance(X[k])            
             estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
             s = np.random.randint(0,swarm.nb_agents)
-            swarm.MPC(optim_agent = s, use_cov = False, METRIC = 'det_inv_cov')
+            swarm.MPC(optim_agent = s, use_cov = False, METRIC = 'min_eig_inv_cov')
             # for j in range(nb_agents):
             #     if k == (tinc/Delta_t):
             #         estimated_states_history.append(estimated_states[j])
@@ -427,7 +427,7 @@ for MC_RUN in range(MC_TOTAL):
     ERR.append(EST_ERR)
 
 data_dict = {"TRUTH": TRUTH, "EST": EST, "ERR": ERR }
-sc.io.savemat("control_ERR_150_1_test_HighNoise_det_inv_cov.mat", data_dict)
+sc.io.savemat("control_ERR_sparseloop_150_1_test_HighNoise_powell_inv_cov.mat", data_dict)
     
     # for j in range(nb_agents):
     #     states = estimated_states_history[j]#x_res[j].transpose()
