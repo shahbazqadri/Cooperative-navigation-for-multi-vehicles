@@ -217,7 +217,8 @@ end
 clear EST TRUTH;
 %load control_high_noise_full.mat%ERR_full_150.mat
 % load control_ERR_full_150_1_test_NewNoise_SAM.mat
-load control_ERR_full_150_1_test_HighNoise_SAM.mat
+% load control_ERR_full_150_1_test_HighNoise_SAM.mat
+load control_ERR_complete_150_1_test_lowfreq_powell_trajopt_SAM.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -249,7 +250,7 @@ for i = 1:m
 end
 legend(Leg,'location','best');
 
-Ts = length(ERR);
+Ts = 18%length(ERR);
 
 p_ERR_control_SAM = zeros(Ts,m);
 th_ERR_control_SAM = zeros(Ts,m);
@@ -311,7 +312,8 @@ end
 %%
 clear EST TRUTH;
 % load control_ERR_full_150_1_test_NewNoise_inv_cov.mat
-load control_ERR_full_150_1_test_HighNoise_inv_cov.mat
+% load control_ERR_full_150_1_test_HighNoise_inv_cov.mat
+load control_ERR_complete_150_1_test_lowfreq_powell_trajopt_inv_cov.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -343,7 +345,7 @@ for i = 1:m
 end
 legend(Leg,'location','best');
 
-Ts = length(ERR);
+Ts = 18%length(ERR);
 
 p_ERR_control_invcov = zeros(Ts,m);
 th_ERR_control_invcov = zeros(Ts,m);
@@ -417,41 +419,45 @@ end
 % legend('basic guidance','control (obsv)' , 'control (complete)', 'control (invcov)')
 %%
 figure;
-plot(sqrt(sum(p_error_no_control,2)/N),'-')
-hold on
-plot(sqrt(sum(p_error_control,2)/N),'-.')
-%plot(sqrt(sum(p_error_no_control_full,2)/N),'-')
-hold on;
+% plot(sqrt(sum(p_error_no_control,2)/N),'-')
+% hold on
+% plot(sqrt(sum(p_error_control,2)/N),'-.')
+% %plot(sqrt(sum(p_error_no_control_full,2)/N),'-')
+% hold on;
 plot(sqrt(sum(p_error_control_SAM,2)/N),'-.')
 hold on;
 % plot(sqrt(sum(p_error_control_mineigSAM,2)/N),'-.')
 hold on
 plot(sqrt(sum(p_error_control_invcov,2)/N),'-.')
-hold on
-plot(sqrt(sum(p_error_control_detinvcov,2)/N),'-.')
-legend('basic guidance ','active guidance (min $(det($obsv$))^{-1}$)',...
-    'active guidance (min $(det($SAM$))^{-1}$)',  ...
-    'active guidance (max $\lambda_{min}(P^{-1}_{EKF})$)', 'active guidance (min $(det(P^{-1}_{EKF}))^{-1}$)','location','best','interpreter','latex')
+% hold on
+% plot(sqrt(sum(p_error_control_detinvcov,2)/N),'-.')
+% legend('basic guidance ','active guidance (min $(det($obsv$))^{-1}$)',...
+%     'active guidance (min $(det($SAM$))^{-1}$)',  ...
+%     'active guidance (max $\lambda_{min}(P^{-1}_{EKF})$)', 'active guidance (min $(det(P^{-1}_{EKF}))^{-1}$)','location','best','interpreter','latex')
+legend('active guidance (min $(det($SAM$))^{-1}$)',  ...
+    'active guidance (max $\lambda_{min}(P^{-1}_{EKF})$)', 'location','best','interpreter','latex')
 grid on
 xlabel('time step (x 0.1 sec = time)')
 ylabel('position RMSE (meters)')
 
 figure;
-plot(sqrt(sum(th_error_no_control,2)/N),'.','MarkerSize',10)
-hold on
-plot(sqrt(sum(th_error_control,2)/N),'.')
-%plot(sqrt(sum(th_error_no_control_full,2)/N),'.','MarkerSize',10)
-hold on
+% plot(sqrt(sum(th_error_no_control,2)/N),'.','MarkerSize',10)
+% hold on
+% plot(sqrt(sum(th_error_control,2)/N),'.')
+% %plot(sqrt(sum(th_error_no_control_full,2)/N),'.','MarkerSize',10)
+% hold on
 plot(sqrt(sum(th_error_control_SAM,2)/N),'.')
 hold on
 % plot(sqrt(sum(th_error_control_mineigSAM,2)/N),'.')
-hold on
+% hold on
 plot(sqrt(sum(th_error_control_invcov,2)/N),'.')
-hold on
-plot(sqrt(sum(th_error_control_detinvcov,2)/N),'.')
-legend('basic guidance ','active guidance (min $(det($obsv$))^{-1}$)',...
-    'active guidance (min $(det($SAM$))^{-1}$)',  ...
-    'active guidance (max $\lambda_{min}(P^{-1}_{EKF})$)', 'active guidance (min $(det(P^{-1}_{EKF}))^{-1}$)','location','best','interpreter','latex')
+% hold on
+% plot(sqrt(sum(th_error_control_detinvcov,2)/N),'.')
+% legend('basic guidance ','active guidance (min $(det($obsv$))^{-1}$)',...
+%     'active guidance (min $(det($SAM$))^{-1}$)',  ...
+%     'active guidance (max $\lambda_{min}(P^{-1}_{EKF})$)', 'active guidance (min $(det(P^{-1}_{EKF}))^{-1}$)','location','best','interpreter','latex')
+legend('active guidance (min $(det($SAM$))^{-1}$)',  ...
+    'active guidance (max $\lambda_{min}(P^{-1}_{EKF})$)', 'location','best','interpreter','latex')
 grid on
 xlabel('time step (x 0.1 sec = time)')
 ylabel('heading RMSE (rad)')

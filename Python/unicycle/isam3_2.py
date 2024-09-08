@@ -8,7 +8,7 @@ Authors: Shahbaz P Qadri Syed, He Bai
 import numpy as np
 import scipy as sc
 from agent import Agent
-from Swarm_PSO import Swarm
+from Swarm_MPC import Swarm
 import gtsam
 from typing import Optional, List
 from functools import partial
@@ -45,7 +45,7 @@ for MC_RUN in range(MC_TOTAL):
     std_omega = 0*np.deg2rad(0.57) #degrees/s
     std_v     = 0*0.01 #* 10 #m/s
     std_range = 0.01 * 100 #m
-    S_Q = np.diag([0.5, 0.5, 0.05]) * Delta_t
+    S_Q = np.diag([0.1, 0.1, 0.01]) * Delta_t
 
     #TODO: frequency of range and odometry measurements from simulator
     f_range   = 10 #Hz
@@ -58,9 +58,11 @@ for MC_RUN in range(MC_TOTAL):
 
     #TODO: number of agents in the simulation and the adjacency graph of range measurement
     nb_agents = 5
-    adjacency = np.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [0, 0, 1, 0, 0]])
-    # adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])
-    # adjacency = (np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))
+    # adjacency = np.array([[0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 0, 0]]) # cross
+    # adjacency = np.array([[0, 1, 0, 0, 0], [0, 0, 0, 0, 1], [0, 0, 0, 1, 0], [1, 0, 0, 0, 0], [0, 0, 1, 0, 0]])#ring2
+    # adjacency = np.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [0, 0, 1, 0, 0]]) #sparseloop
+    adjacency = np.array([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[1,0,0,0,0]])#ring
+    # adjacency = (np.ones((nb_agents, nb_agents)) - np.eye(nb_agents))#complete
     # #
     #adjacency = np.array([[0,1,1,0,0],[0,0,1,0,0],[0,0,0,1,0],[1,0,0,0,1],[1,0,0,0,0]])#
 
@@ -361,7 +363,7 @@ for MC_RUN in range(MC_TOTAL):
             cov = isam.marginalCovariance(X[k])            
             estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
             s = np.random.randint(0,swarm.nb_agents)
-            swarm.MPC(optim_agent = s, use_cov = False, METRIC = 'min_eig_inv_cov')
+            swarm.MPC(optim_agent = s, use_cov = False, METRIC = 'min_eig_inv_cov_traj_L1')
             # for j in range(nb_agents):
             #     if k == (tinc/Delta_t):
             #         estimated_states_history.append(estimated_states[j])
@@ -427,7 +429,7 @@ for MC_RUN in range(MC_TOTAL):
     ERR.append(EST_ERR)
 
 data_dict = {"TRUTH": TRUTH, "EST": EST, "ERR": ERR }
-sc.io.savemat("control_ERR_sparseloop_150_1_test_HighNoise_powell_inv_cov.mat", data_dict)
+sc.io.savemat("control_ERR_ring_150_1_test2_LowNoise_inv_cov_L1.mat", data_dict)
     
     # for j in range(nb_agents):
     #     states = estimated_states_history[j]#x_res[j].transpose()

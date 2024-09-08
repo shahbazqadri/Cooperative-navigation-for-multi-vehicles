@@ -217,7 +217,7 @@ end
 clear EST TRUTH;
 %load control_high_noise_full.mat%ERR_full_150.mat
 % load control_ERR_sparse_150_1_test_NewNoise_SAM.mat
-load control_ERR_sparse_150_1_test_HighNoise_SAM.mat
+load control_ERR_sparse_150_1_test_HigherNoise_powell_SAM.mat
 N = 20;
 m = 5;
 T = length(EST);
@@ -311,7 +311,7 @@ end
 %%
 clear EST TRUTH;
 % load control_ERR_sparse_150_1_test_NewNoise_inv_cov.mat
-load control_ERR_sparse_150_1_test_HighNoise_inv_cov.mat
+load control_ERR_sparse_150_1_test_HigherNoise_powell_inv_cov.mat
 N = 20;
 m = 5;
 T = length(EST);
