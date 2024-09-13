@@ -41,7 +41,7 @@ def init(swarmsize, x, y, theta, a_ids):
     import random
     import numpy as np
 
-    pos0 = 5 * np.array([[0., 10., 10., 0., 20.], [0., 0., 10., 10., 10.]])
+    pos0 = np.array([[0., 0.3, 0.3, 0., 0.6], [0., 0., 0.3, 0.3, 0.3]])
     theta0 = [0, 0, 0, 0, 0]
 
 

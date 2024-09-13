@@ -6,10 +6,10 @@
     "MSG_SIZE": 1792,
     "MSG_TYPE": 0,
     "TIME_ASYNC": 0,
-    "REAL_TIME_FACTOR": 0.1,
+    "REAL_TIME_FACTOR": 1,
     "SIM_TIME_STEP": 0.1,
     "SIM_TIME": 100,
-    "WIDTH": 1000, 
-    "LENGTH": 1000, 
+    "WIDTH": 12, 
+    "LENGTH": 12, 
     "USE_VIS": 1
 }

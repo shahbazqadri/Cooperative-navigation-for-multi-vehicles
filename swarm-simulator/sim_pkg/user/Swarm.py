@@ -152,7 +152,7 @@ class Swarm():
                 metrics = np.zeros((N_total, 1))
                 # metrics = Parallel(n_jobs=num_cores)(delayed(self.try_parallel)(i, optim_agent, states, METRIC,U)for i in range(N_total))
                 metrics = [self.try_parallel(i, optim_agent, states, METRIC, U) for i in range(N_total)]
-
+                # FIXME: Why is this running so many times?
                 # for i in range(N_total):
                 #     for j in range(self.MPC_horizon):
                 #         for n in range(self.nb_agents):
@@ -244,7 +244,7 @@ class Swarm():
                 jh = self.compute_range_jac(state)
                 Jh = sc.linalg.block_diag(Jh, jh)
                 Qh = sc.linalg.block_diag(Qh, self.std_range ** 2 * np.eye(jh.shape[0]))
-        
+        # print("SAM1 P1")
         for j in range(self.MPC_horizon - 1):
             state_j = states[:,j,:].squeeze()
             inputs = all_inputs[:,j,:].squeeze()
@@ -254,24 +254,38 @@ class Swarm():
             else:
                 jd = self.compute_dynamics_jac1(state_j, inputs, j)
                 Jd = np.vstack((Jd, jd))
+        # print("SAM1 P2")
         Qd = np.kron(np.eye(self.nb_agents * (self.MPC_horizon - 1)), self.vehicles[0].S_Q.T @ self.vehicles[0].S_Q)        
         J = np.vstack((Jh, Jd))
         Q = sc.linalg.block_diag(Qh, Qd)
-        M = J.T @ np.linalg.inv(Q) @ J        
-        return 1/np.linalg.det(M)
+        M = J.T @ np.linalg.inv(Q) @ J 
+
+        # Regularize M to avoid overflow or singular matrix issues
+        epsilon = 1e-6
+        M += np.eye(M.shape[0]) * epsilon
+        # print("SAM1 DET")
+        print(M[0])
+        try:
+            det_value = np.linalg.det(M)
+            if det_value == 0 or np.isnan(det_value):
+                raise ValueError("Matrix is a singular value or has NaN values")
+            return 1/det_value
+        except OverflowError:
+            print("Overflow encountered in determinant calculation")
+            return np.inf
+        # return 1/np.linalg.det(M)
     
     def compute_dynamics_jac1(self, statej, inputs, j):
         n_col = self.nx * self.MPC_horizon * self.nb_agents
         jac_size = 3
         Jd = np.zeros((self.nb_agents * jac_size, n_col))
         for n in range(self.nb_agents):
+            # print("iter")
             j0 = self.compute_individual_jac1(statej[:,n:n+1], inputs[:,n:n+1], self.pred_intv)
             Jd[jac_size * n: jac_size * n + jac_size, j * self.nx * self.nb_agents + self.nx * n : j * self.nx * self.nb_agents + self.nx * n + self.nx] = - j0
             Jd[jac_size * n: jac_size * n + jac_size, (j+1) * self.nx * self.nb_agents + self.nx * n : (j + 1) * self.nx * self.nb_agents + self.nx * n + self.nx] = np.eye(self.nx)
         return Jd
             
-        
-        
     def compute_individual_jac1(self, statej, inputs, Delta_t):
         agent = Agent()
         unicycle = agent.unicycle
@@ -300,7 +314,7 @@ class Swarm():
         Qd = np.kron(np.eye(self.nb_agents * (self.MPC_horizon - 1)), np.diag([self.std_v**2, self.std_omega**2]))        
         J = np.vstack((Jh, Jd))
         Q = sc.linalg.block_diag(Qh, Qd)
-        M = J.T @ np.linalg.inv(Q) @ J        
+        M = J.T @ np.linalg.inv(Q) @ J   
         return 1/np.linalg.det(M)
     
     def compute_dynamics_jac(self, statej, statej1, j):
