@@ -63,6 +63,7 @@ class Vehicle(object):
         # odom measurements parameters
         self.meas = np.empty((2,1))
         self.meas_history = np.empty((2,1))
+        self.lm_meas_history = []
 
         # navigation parameters
         self.target_point = np.array([[3000],[3000]])
@@ -72,7 +73,10 @@ class Vehicle(object):
         self.use_estimation = True
     
     def set_est(self, est):
+        if est.shape[0] == 3:
+            est = est.reshape((3,1))
         self.states_est = est
+        # print(est)
 
     def gen_w(self):
         # only changing the control in the first 3 steps

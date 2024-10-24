@@ -40,13 +40,14 @@ def init(swarmsize, x, y, theta, a_ids):
     import math
     import random
     import numpy as np
-
-    pos0 = np.array([[0., 0.3, 0.3, 0., 0.6], [0., 0., 0.3, 0.3, 0.3]])
+    
+    landmarks = np.array([[2., 5.], [2., -5.]])
+    pos0 = np.array([[0., 0.3, 0.3, 0.], [0., 0., 0.3, 0.3]])
     theta0 = [0, 0, 0, 0, 0]
 
 
 
-    for i in range(swarmsize):
+    for i in range(swarmsize-2):
         x[i] = pos0[0][i] 
         y[i] = pos0[1][i] 
         a_ids[i] = i
@@ -57,5 +58,11 @@ def init(swarmsize, x, y, theta, a_ids):
 		# 	a_ids[i]=0
 		# else:
 		# 	a_ids[i]=2
+
+    for i in range(2):
+        x[i+4] = landmarks[0][i]
+        y[i+4] = landmarks[1][i]
+        a_ids[i] = i
+        theta[i] = 0
 
     return x, y, theta, a_ids
