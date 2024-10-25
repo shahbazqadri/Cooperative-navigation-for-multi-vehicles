@@ -56,7 +56,7 @@ def usr(robot):
         nx = 3
         nu = 2
         Delta_t   = 0.1
-        T = 30 #s
+        T = 300 #s
         # finding the number of decimal places of Delta_t
         precision = abs(D(str(Delta_t)).as_tuple().exponent)
         t         = np.arange(0,T,Delta_t)
@@ -458,7 +458,6 @@ def usr(robot):
                                                                             meas_history[j * nu:(j + 1) * nu, :].reshape(
                                                                                 nu, 1), Delta_t)
                     v.insert(X[k+1], X_val)
-            print("Made it here")
         
             # Range measurment factor
             range_period = 1./f_range
@@ -469,8 +468,6 @@ def usr(robot):
                     # print("RANGE MEASURE FACTOR")
                     range_meas = np.zeros((nb_agents, 1))
                     for j in range(nb_agents):
-                        print("1")
-
                         idx_set = np.nonzero(adjacency[j, :])[0]
                         range_meas = swarm.vehicles[j].measRange_history[idx_set, k]
                         range_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag([std_range ** 2] * len(idx_set)))
@@ -516,20 +513,14 @@ def usr(robot):
                 # ISAM2 update
                 isam.update(graph, v)
                 result = isam.calculateEstimate()
-                cov = isam.marginalCovariance(X[k])            
+                cov = isam.marginalCovariance(X[k])           
+
                 estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
                 s = np.random.randint(0,swarm.nb_agents)
-                # if k % 10 == id_var:
-                #     metric = 'SAM'
-                # else:
-                #     metric = 'obsv'
-                # st = time.time()
+
                 # swarm.MPC(optim_agent = id_var, use_cov = False, METRIC = 'SAM')
                 swarm.MPC(optim_agent = id_var, use_cov = True, METRIC = 'min_eig_inv_cov')
-                # et = time.time()
-                # elapsed_t = et-st
-                # print("ELAPSED TIME", elapsed_t)
-                # print("MPC Called") # FIXME: Possibly use id_var instead of s and grab each set of data in .csv
+
                 # for j in range(nb_agents):
                 #     if k == (tinc/Delta_t):
                 #         estimated_states_history.append(estimated_states[j])
@@ -537,6 +528,7 @@ def usr(robot):
                 #     else:
                 #         estimated_states_history[j] = np.hstack((estimated_states_history[j], estimated_states[j]))
                 # k_old = k+1
+
                 # Reset graph and values
                 graph = gtsam.NonlinearFactorGraph()
                 v = gtsam.Values()
@@ -548,14 +540,20 @@ def usr(robot):
                     count = 0
             else:
                 count += 1
-            
-            params = gtsam.LevenbergMarquardtParams()
-            optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)
-            result = optimizer.optimize()
 
-            marginals = gtsam.Marginals(graph, result)
-            cov = marginals.marginalCovariance(X[k])
-            estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
+            # params = gtsam.LevenbergMarquardtParams()
+            # optimizer = gtsam.LevenbergMarquardtOptimizer(graph, v, params)
+            # result = optimizer.optimize()
+
+            # marginals = gtsam.Marginals(graph, result)
+            # if isam.valueExists(X[k]):
+            #     print(f"Variable X[{k}] found in the BayesTree.")
+            #     cov = isam.marginalCovariance(X[k])
+            #     estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
+            # else:
+            #     print(f"Variable X[{k}] not found in the BayesTree.")
+            # cov = marginals.marginalCovariance(X[k])
+            # estimated_states_history = parse_result(result, cov, nb_agents, t[:k+1])
 
             radius_of_wheel, dist_between_wheel = 0.015, 0.08
             # print(id_var, swarm.vehicles[id_var].omega)
@@ -567,12 +565,8 @@ def usr(robot):
             
             robot.set_vel(v_L, v_R)
             print("Robot ", id_var, " vel: ", v_L, v_R, "Omega: ", swarm.vehicles[id_var].omega)
-            # print("K: ", k)
             k += 1
-            
-            # print(tt)
-            # for n in range(swarm.nb_agents):
-            #     print(swarm.vehicles[n].omega)
+
         print("FINISHED THE LOOP!")
         k -= 1
         swarm.get_swarm_states_history_()
@@ -586,7 +580,6 @@ def usr(robot):
         #print('Done.')
         #print('Performing factor graph optimization........')
         
-        # if graph.size() > 0:
         isam.update(graph, v)
         result = isam.calculateEstimate()
         cov = isam.marginalCovariance(X[k])            

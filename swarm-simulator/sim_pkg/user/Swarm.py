@@ -334,7 +334,9 @@ class Swarm():
                 w_set = np.clip(w_set, -self.omega_max, self.omega_max)
                 bnds = tuple(repeat((-self.omega_max, self.omega_max), self.MPC_horizon))
                 options = {'maxiter': 100}
-                res = minimize(self.metric, w_set, args = (states, optim_agent), bounds = bnds, method='Powell', options=options)
+                # FIXME: THIS IS LOOPING AND NOT FINISHING EVER
+                res = minimize(self.metric, w_set, args = (states, optim_agent, METRIC), bounds = bnds, method='Powell', options=options)
+                print("ENDMIN")
                 w = res.x[0]
                 
                 # PSO Needs to write the vectorized metric function
@@ -435,7 +437,7 @@ class Swarm():
                 col_idx1 = (self.nx * self.nb_agents) * (i)
                 col_idx2 = (self.nx * self.nb_agents) * (i + 1)
                 Jl[row_idx1:row_idx2, col_idx1:col_idx2] = self.compute_lm_range_jac(state)
-
+    
         for j in range(0, self.MPC_horizon-1):
             state_j = states[:, j, :].squeeze()
             inputs = all_inputs[:, j, :].squeeze()
@@ -455,7 +457,7 @@ class Swarm():
             col_idx1 = (self.nx * self.nb_agents) * (j)
             col_idx2 = (self.nx * self.nb_agents) * (j + 1)
             Jd[row_idx1:row_idx2, col_idx1:col_idx2] = - F
-
+        
         for n in range(self.nb_agents):
             if n == 0:
                 P0 = self.vehicles[n].states_cov
