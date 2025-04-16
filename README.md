@@ -1,5 +1,7 @@
 ## Swarm Simulator
 
+Contributors: Shahbaz P Qadri Syed, He Bai, Ben Sailor
+
 ### Demo
 
 https://github.com/user-attachments/assets/4a05d60a-57dd-41b3-82b6-68c9e6b604c7
